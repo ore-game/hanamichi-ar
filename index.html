@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <title>樱木花道：生日限定 AR</title>
+    <!-- 只保留最核心的 A-Frame 和 Mind-AR，彻底抛弃故障插件 -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Arial Black', sans-serif; background-color: #000; }
+        
+        /* 粉丝页封面 */
+        #ui-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #ffafbd 0%, #ffc3a0 100%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; z-index: 2000; text-align: center;
+            transition: opacity 0.8s ease;
+        }
+        #start-button {
+            padding: 22px 60px; font-size: 24px; background: white; color: #ff758c;
+            border: none; border-radius: 60px; cursor: pointer; font-weight: 900;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 30px;
+        }
+
+        /* 状态诊断面板 */
+        #debug-panel {
+            position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8);
+            color: #fff; padding: 15px; font-size: 13px; z-index: 3000; border-radius: 8px;
+            pointer-events: none; line-height: 1.6; border: 1px solid #555;
+        }
+
+        /* 漫画字幕气泡 */
+        #bubble {
+            position: fixed; bottom: 35%; left: 50%; transform: translateX(-50%);
+            background: white; padding: 20px 30px; border-radius: 50px;
+            border: 4px solid #000; box-shadow: 8px 8px 0px rgba(0,0,0,0.2);
+            display: none; z-index: 100; font-weight: 900; color: #000; 
+            text-align: center; font-size: 30px; font-style: italic;
+        }
+        #bubble:after {
+            content: ''; position: absolute; bottom: -20px; left: 40px;
+            border-width: 20px 20px 0 0; border-style: solid;
+            border-color: white transparent transparent transparent;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 诊断面板 -->
+    <div id="debug-panel">
+        👤 樱木模型: <span id="model-status" style="color:#aaa;">等待加载...</span><br>
+        🏀 篮球模型: <span id="ball-status" style="color:#aaa;">等待加载...</span><br>
+        ⚡ 原生动画: <span id="anim-status" style="color:#aaa;">未激活</span>
+    </div>
+
+    <!-- 封面层 -->
+    <div id="ui-overlay">
+        <h1 style="font-size: 4rem; margin: 0; font-weight: 900;">GENIUS 10</h1>
+        <p style="opacity: 0.9; font-size: 1.3rem;">“因为我是天才啊！”</p>
+        <button id="start-button">唤醒天才花道</button>
+    </div>
+
+    <!-- 字幕气泡 -->
+    <div id="bubble">I'M A GENIUS!</div>
+
+    <script>
+        // 🌸 樱花特效组件
+        AFRAME.registerComponent('sakura-particles', {
+            init: function () {
+                this.petals = [];
+                for (let i = 0; i < 35; i++) {
+                    const petal = document.createElement('a-plane');
+                    petal.setAttribute('width', '0.08'); petal.setAttribute('height', '0.05');
+                    petal.setAttribute('material', {color: '#ffb7c5', transparent: true, opacity: 0.8, side: 'double'});
+                    const x = (Math.random() - 0.5) * 4;
+                    const y = Math.random() * 4 + 1;
+                    const z = (Math.random() - 0.5) * 2;
+                    petal.setAttribute('position', {x, y, z});
+                    petal.userData = { speed: Math.random() * 0.01 + 0.01 };
+                    this.el.appendChild(petal);
+                    this.petals.push(petal);
+                }
+            },
+            tick: function () {
+                this.petals.forEach(p => {
+                    let pos = p.getAttribute('position');
+                    pos.y -= p.userData.speed;
+                    if (pos.y < -1) pos.y = 3;
+                    p.setAttribute('position', pos);
+                    let rot = p.getAttribute('rotation');
+                    p.setAttribute('rotation', {x: rot.x+2, y: rot.y+1, z: rot.z+1});
+                });
+            }
+        });
+
+        // 🔥 【终极武器】原生 Three.js 动画驱动器，彻底解决 T-Pose
+        AFRAME.registerComponent('genius-animator', {
+            init: function () {
+                this.mixer = null;
+                const aStatus = document.getElementById('anim-status');
+
+                this.el.addEventListener('model-loaded', () => {
+                    const model3D = this.el.getObject3D('mesh');
+                    if (!model3D) return;
+
+                    // 检查模型内部是否真的包含动画
+                    if (model3D.animations && model3D.animations.length > 0) {
+                        this.mixer = new THREE.AnimationMixer(model3D);
+                        // 遍历并设置所有动画轨道
+                        model3D.animations.forEach((clip) => {
+                            const action = this.mixer.clipAction(clip);
+                            action.setLoop(THREE.LoopOnce, 1);
+                            action.clampWhenFinished = true; // 停在最后一帧
+                        });
+                        aStatus.innerText = "🔥 引擎已就绪 (包含动画)";
+                        aStatus.style.color = "#0f0";
+                    } else {
+                        // 如果变红，说明导出的模型文件根本没有动作！
+                        aStatus.innerText = "❌ 警告: glb文件内没有动作轨道！";
+                        aStatus.style.color = "#ff4500";
+                    }
+                });
+            },
+            tick: function (time, timeDelta) {
+                if (this.mixer) {
+                    this.mixer.update(timeDelta / 1000); // 更新动作
+                }
+            },
+            // 提供给外部调用的播放指令
+            playAnim: function() {
+                if (this.mixer) {
+                    const model3D = this.el.getObject3D('mesh');
+                    this.mixer.stopAllAction(); // 停止旧动作
+                    model3D.animations.forEach((clip) => {
+                        const action = this.mixer.clipAction(clip);
+                        action.reset(); // 重置到第一帧
+                        action.play();  // 强行播放
+                    });
+                    document.getElementById('anim-status').innerText = "🔥 原生动画正在播放!";
+                }
+            }
+        });
+    </script>
+
+    <a-scene 
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: yes;" 
+        color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" 
+        vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+        
+        <a-assets>
+            <a-asset-item id="hanamichiModel" src="hanamichii.glb"></a-asset-item>
+            <a-asset-item id="ballModel" src="ball.glb"></a-asset-item>
+        </a-assets>
+
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <a-entity mindar-image-target="targetIndex: 0" id="target-anchor">
+            
+            <a-entity sakura-particles></a-entity>
+
+            <!-- 极简透明篮板 -->
+            <a-entity id="hoop-set" position="0 1.5 -1.5" visible="false">
+                <a-box position="0 0.5 0" width="1.6" height="1.05" depth="0.02" color="#e0e0e0" material="opacity: 0.5; transparent: true"></a-box>
+                <a-box position="0 0.5 0.01" width="0.6" height="0.45" depth="0.01" color="#b91d1d" material="wireframe: true"></a-box>
+                <a-torus position="0 0.1 0.45" rotation="90 0 0" radius="0.25" tube="0.015" color="#e64a19"></a-torus>
+            </a-entity>
+
+            <!-- 樱木主体：挂载原生动画引擎 genius-animator -->
+            <a-entity id="character"
+                      gltf-model="#hanamichiModel" 
+                      position="0 -0.8 0" 
+                      scale="0.8 0.8 0.8" 
+                      rotation="0 180 0" 
+                      visible="false"
+                      genius-animator>
+                
+                <a-entity id="basketball"
+                          gltf-model="#ballModel"
+                          position="0.2 1.3 0.3" 
+                          scale="0.4 0.4 0.4"
+                          visible="false">
+                </a-entity>
+            </a-entity>
+
+            <a-light type="ambient" intensity="1.2"></a-light>
+            <a-light type="directional" position="1 4 2" intensity="1"></a-light>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        const startBtn = document.querySelector('#start-button');
+        const overlay = document.querySelector('#ui-overlay');
+        const sceneEl = document.querySelector('a-scene');
+        const character = document.querySelector('#character');
+        const ball = document.querySelector('#basketball');
+        const hoop = document.querySelector('#hoop-set');
+        const bubble = document.querySelector('#bubble');
+
+        // 基础载入诊断
+        const mStatus = document.getElementById('model-status');
+        const bStatus = document.getElementById('ball-status');
+        character.addEventListener('model-loaded', () => { mStatus.innerText = "✅ 载入完成"; mStatus.style.color = "#0f0"; });
+        ball.addEventListener('model-loaded', () => { bStatus.innerText = "✅ 载入完成"; bStatus.style.color = "#0f0"; });
+
+        startBtn.addEventListener('click', () => {
+            overlay.style.display = 'none';
+            sceneEl.systems["mindar-image-system"].start();
+        });
+
+        // 识别成功：天才降临序列
+        let currentAnimFrame = null;
+        document.querySelector('#target-anchor').addEventListener("targetFound", () => {
+            console.log("识别成功");
+            character.setAttribute('visible', 'true');
+            ball.setAttribute('visible', 'true');
+            hoop.setAttribute('visible', 'true');
+            
+            // 恢复樱木初始背面角度
+            character.setAttribute('rotation', '0 180 0');
+            bubble.style.display = 'none';
+
+            // ⚡ 强行调用原生底层动画引擎
+            if (character.components['genius-animator']) {
+                character.components['genius-animator'].playAnim();
+            }
+
+            let startTime = Date.now();
+            const animateSequence = () => {
+                let elapsed = (Date.now() - startTime) / 1000;
+
+                // 1. 灌篮阶段 (2.0s - 2.8s)：球向篮筐飞
+                if (elapsed >= 2.0 && elapsed < 2.8) {
+                    ball.setAttribute('position', {x: 0, y: 3.5, z: -1.0}); 
+                } 
+                // 2. 穿心入网 (2.8s - 4.2s)：球在篮下
+                else if (elapsed >= 2.8 && elapsed < 4.2) {
+                    ball.setAttribute('position', {x: 0, y: 1.0, z: -1.4});
+                }
+                // 3. 落地瞬间 (4.5s)：球瞬间回到手中，人物瞬间转身面对观众
+                else if (elapsed >= 4.5) {
+                    ball.setAttribute('position', {x: 0.2, y: 1.3, z: 0.3});
+                    bubble.style.display = 'block';
+                    character.setAttribute('rotation', '0 0 0'); // 强制转身
+                    return; // 结束此轮动作
+                }
+                currentAnimFrame = requestAnimationFrame(animateSequence);
+            };
+            if (currentAnimFrame) cancelAnimationFrame(currentAnimFrame);
+            animateSequence();
+        });
+
+        document.querySelector('#target-anchor').addEventListener("targetLost", () => {
+            bubble.style.display = 'none';
+            if (currentAnimFrame) cancelAnimationFrame(currentAnimFrame);
+        });
+    </script>
+</body>
+</html>
