@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>樱木花道生日会 AR - 樱花特别版</title>
+    <!-- 引入核心库：A-Frame 与 MindAR -->
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <!-- 引入动画增强插件 -->
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+        
+        /* 启动与加载界面样式 */
+        #ui-overlay {
+            position: absolute; width: 100%; height: 100%; 
+            background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: white; z-index: 10000; text-align: center;
+        }
+        
+        #start-button {
+            padding: 18px 45px; font-size: 22px; background: #fff; color: #ff758c;
+            border: none; border-radius: 50px; cursor: pointer; font-weight: bold;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3); transition: 0.3s;
+        }
+        
+        #start-button:active { transform: scale(0.95); }
+
+        .hint { 
+            position: absolute; bottom: 30px; width: 100%; text-align: center; 
+            color: white; z-index: 10; font-weight: bold; 
+            text-shadow: 0 1px 4px rgba(0,0,0,0.5); 
+        }
+
+        #loading-indicator { display: none; color: white; margin-top: 20px; font-weight: bold; }
+    </style>
+</head>
+
+<body>
+    <!-- 初始引导界面 -->
+    <div id="ui-overlay">
+        <h1 style="font-size: 2.5rem; margin-bottom: 5px;">🌸 GENIUS 10 🌸</h1>
+        <p style="margin-top: 0; opacity: 0.9; margin-bottom: 40px;">樱木花道生日会 - 限定 AR 无料</p>
+        <button id="start-button">开启天才时刻</button>
+        <div id="loading-indicator">正在召唤天才与樱花...</div>
+    </div>
+
+    <!-- 底部提示文字 -->
+    <div class="hint" id="info-text">请对准“天才识别卡”正面</div>
+
+    <!-- AR 场景配置 -->
+    <!-- 注意：请确保 targets.mind 文件在同一目录下 -->
+    <a-scene 
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no;" 
+        color-space="sRGB" 
+        renderer="colorManagement: true, physicallyCorrectLights" 
+        vr-mode-ui="enabled: false" 
+        device-orientation-permission-ui="enabled: false">
+        
+        <a-assets>
+            <!-- 预加载 3D 模型资源 -->
+            <a-asset-item id="jerseyModel" src="./jersey.glb"></a-asset-item>
+            <a-asset-item id="ballModel" src="./ball.glb"></a-asset-item>
+        </a-assets>
+
+        <!-- 摄像机配置 -->
+        <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;" raycaster="far: 10000; objects: .clickable"></a-camera>
+
+        <!-- 识别目标逻辑 -->
+        <a-entity mindar-image-target="targetIndex: 0" id="ar-target">
+            
+            <!-- 自定义组件：樱花飘落 -->
+            <a-entity sakura-falling></a-entity>
+
+            <!-- 核心展示：旋转的 10 号球衣 -->
+            <a-gltf-model 
+                id="jersey"
+                class="clickable"
+                src="#jerseyModel"
+                position="0 -0.2 0" 
+                rotation="0 0 0" 
+                scale="0.6 0.6 0.6"
+                animation="property: rotation; to: 0 360 0; dur: 12000; easing: linear; loop: true">
+            </a-gltf-model>
+
+            <!-- 动态元素：不断弹跳并旋转的篮球 -->
+            <a-gltf-model 
+                src="#ballModel"
+                position="0.5 -0.4 0.1" 
+                scale="0.15 0.15 0.15"
+                animation="property: position; to: 0.5 0.1 0.1; dir: alternate; dur: 700; easing: easeInOutQuad; loop: true"
+                animation__rotate="property: rotation; to: 360 360 0; dur: 1500; easing: linear; loop: true">
+            </a-gltf-model>
+
+            <!-- 祝词文字 -->
+            <a-entity position="0 0.8 0.1">
+                <a-text 
+                    value="HAPPY BIRTHDAY\nTENSAI SAKURAGI" 
+                    color="#FFFFFF" 
+                    align="center" 
+                    width="4"
+                    font="https://cdn.aframe.io/fonts/Exo2Bold.fnt">
+                </a-text>
+            </a-entity>
+
+            <!-- 环境光与平行光，增强 3D 质感 -->
+            <a-light type="ambient" intensity="0.8"></a-light>
+            <a-light type="directional" position="1 2 1" intensity="0.6"></a-light>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        // --- 樱花飘落粒子系统组件 ---
+        AFRAME.registerComponent('sakura-falling', {
+            init: function () {
+                this.petals = [];
+                const petalCount = 35; // 花瓣总数
+                for (let i = 0; i < petalCount; i++) {
+                    const petal = document.createElement('a-entity');
+                    // 创建粉色小平面作为花瓣
+                    petal.setAttribute('geometry', {
+                        primitive: 'plane',
+                        width: 0.04,
+                        height: 0.025
+                    });
+                    petal.setAttribute('material', {
+                        color: '#ffb7c5',
+                        transparent: true,
+                        opacity: 0.8,
+                        side: 'double'
+                    });
+                    
+                    // 随机初始位置 (在目标图片周围分布)
+                    const x = (Math.random() - 0.5) * 2;
+                    const y = Math.random() * 2 + 1; // 从卡片上方落下
+                    const z = (Math.random() - 0.5) * 1;
+                    petal.setAttribute('position', {x: x, y: y, z: z});
+                    
+                    // 存储自定义动力学数据
+                    petal.userData = {
+                        speed: Math.random() * 0.008 + 0.004, // 下落速度
+                        swing: Math.random() * 0.01,         // 左右摆动幅度
+                        swingStep: Math.random() * Math.PI * 2
+                    };
+                    
+                    this.el.appendChild(petal);
+                    this.petals.push(petal);
+                }
+            },
+            tick: function (time, timeDelta) {
+                this.petals.forEach(petal => {
+                    const pos = petal.getAttribute('position');
+                    const data = petal.userData;
+                    
+                    // 计算位移：下落 + 左右摆动
+                    pos.y -= data.speed;
+                    data.swingStep += 0.02;
+                    pos.x += Math.sin(data.swingStep) * data.swing;
+                    
+                    // 模拟花瓣翻转
+                    const rot = petal.getAttribute('rotation');
+                    petal.setAttribute('rotation', {
+                        x: rot.x + 1.5,
+                        y: rot.y + 1,
+                        z: rot.z + 1
+                    });
+                    
+                    // 循环逻辑：落出视野后重置到顶部
+                    if (pos.y < -1.2) {
+                        pos.y = 1.5;
+                        pos.x = (Math.random() - 0.5) * 2;
+                    }
+                    
+                    petal.setAttribute('position', pos);
+                });
+            }
+        });
+
+        // --- 逻辑交互处理 ---
+        const startButton = document.querySelector('#start-button');
+        const uiOverlay = document.querySelector('#ui-overlay');
+        const loading = document.querySelector('#loading-indicator');
+        const infoText = document.querySelector('#info-text');
+        const sceneEl = document.querySelector('a-scene');
+
+        // 点击开始按钮，请求摄像头权限并启动
+        startButton.addEventListener('click', () => {
+            startButton.style.display = 'none';
+            loading.style.display = 'block';
+            
+            const arSystem = sceneEl.systems["mindar-image-system"];
+            arSystem.start(); 
+            
+            // 监听系统准备完毕
+            sceneEl.addEventListener("arReady", () => {
+                uiOverlay.style.display = 'none';
+            });
+        });
+
+        // 识别反馈
+        const targetEl = document.querySelector('#ar-target');
+        targetEl.addEventListener("targetFound", () => {
+            infoText.innerText = "🌸 天才时刻！祝樱木生日快乐！ 🌸";
+            infoText.style.color = "#FFD700";
+        });
+
+        targetEl.addEventListener("targetLost", () => {
+            infoText.innerText = "请对准识别卡片正面";
+            infoText.style.color = "white";
+        });
+    </script>
+</body>
+</html>
