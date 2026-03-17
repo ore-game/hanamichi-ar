@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>GENIUS 10 - 樱木花道 AR 最终交付</title>
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: -apple-system, sans-serif; }
+        #ui-overlay {
+            position: absolute; width: 100%; height: 100%; 
+            background: linear-gradient(135deg, #ffafbd 0%, #ff758c 100%);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: white; z-index: 10000; text-align: center;
+            transition: opacity 0.5s ease;
+        }
+        #start-button {
+            padding: 18px 50px; font-size: 20px; background: #fff; color: #ff758c;
+            border: none; border-radius: 50px; cursor: pointer; font-weight: bold;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        #loading-text { display: none; color: white; margin-top: 20px; font-weight: bold; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        .hint-bar { 
+            position: absolute; bottom: 30px; width: 100%; text-align: center; 
+            color: white; z-index: 10; font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8); opacity: 0; transition: opacity 0.5s;
+        }
+        .mindar-ui-loading, .mindar-ui-scanning { display: none !important; }
+        
+        #debug-panel {
+            position: absolute; top: 10px; left: 10px; right: 10px;
+            background: rgba(0,0,0,0.8); color: #0f0; padding: 10px;
+            font-size: 11px; z-index: 20000; display: none; border-radius: 5px;
+            line-height: 1.5; pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="debug-panel">Debug: 核心引擎就绪...</div>
+
+    <div id="ui-overlay">
+        <div style="font-size: 50px; margin-bottom: 10px;">🌸</div>
+        <h1 style="font-size: 2.2rem; margin: 0;">GENIUS 10</h1>
+        <p style="margin-bottom: 30px; opacity: 0.9;">正在召唤天才花道...</p>
+        <button id="start-button">唤醒天才时刻</button>
+        <div id="loading-text">正在启动 AR 引擎...</div>
+    </div>
+
+    <div class="hint-bar" id="info-text">请对准“花花证件照”正面</div>
+
+    <a-scene 
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no;" 
+        color-space="sRGB" 
+        renderer="colorManagement: true, physicallyCorrectLights" 
+        vr-mode-ui="enabled: false" 
+        device-orientation-permission-ui="enabled: false">
+        
+        <a-assets>
+            <a-asset-item id="sakuragiModel" src="./jersey.glb" crossorigin="anonymous"></a-asset-item>
+            <a-asset-item id="ballModel" src="./ball.glb" crossorigin="anonymous"></a-asset-item>
+        </a-assets>
+
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <a-entity mindar-image-target="targetIndex: 0" id="ar-target">
+            <!-- 樱花飘落 -->
+            <a-entity sakura-rain></a-entity>
+
+            <!-- 篮架 -->
+            <a-entity id="hoop" position="0.3 0.6 -0.15" scale="0.6 0.6 0.6">
+                <a-box position="0 0.3 -0.05" width="1.2" height="0.8" depth="0.05" color="white"></a-box>
+                <a-torus position="0 0 0.2" rotation="90 0 0" radius="0.22" radius-tubular="0.015" color="#b91d1d"></a-torus>
+                <a-cone position="0 -0.2 0.2" radius-bottom="0.12" radius-top="0.22" height="0.4" color="white" material="opacity: 0.3; transparent: true; wireframe: true"></a-cone>
+            </a-entity>
+
+            <!-- 1. 樱木模型 (去掉了 visible=false，依靠链式触发) -->
+            <a-gltf-model 
+                id="sakuragi"
+                src="#sakuragiModel"
+                position="0 -0.5 0" 
+                scale="0.65 0.65 0.65"
+                animation__jump="property: position; from: 0 -0.5 0; to: 0 0.4 0; dur: 800; easing: easeOutQuad; startEvents: play-all"
+                animation__land="property: position; from: 0 0.4 0; to: 0 -0.2 0; dur: 400; delay: 400; easing: easeInQuad; startEvents: animationcomplete__jump"
+                animation__bend="property: position; from: 0 -0.2 0; to: 0 -0.4 0; dur: 350; delay: 50; easing: easeInOutSine; startEvents: animationcomplete__land"
+                animation__stand="property: position; from: 0 -0.4 0; to: 0 -0.2 0; dur: 350; easing: easeInOutSine; startEvents: animationcomplete__bend"
+            ></a-gltf-model>
+
+            <!-- 2. 篮球模型 (体积放大一倍，且加入了链式触发) -->
+            <a-gltf-model 
+                id="basketball"
+                src="#ballModel"
+                position="0.2 -0.2 0.2" 
+                scale="0.3 0.3 0.3"
+                animation__b1="property: position; from: 0.2 -0.2 0.2; to: 0.48 0.75 0.1; dur: 800; easing: easeOutQuad; startEvents: play-all"
+                animation__b2="property: position; from: 0.48 0.75 0.1; to: 0.48 -0.7 0; dur: 450; delay: 300; easing: easeInQuad; startEvents: animationcomplete__b1"
+                animation__b3="property: position; from: 0.48 -0.7 0; to: -0.25 0.25 0.15; dur: 550; delay: 100; easing: easeOutBack; startEvents: animationcomplete__b2"
+                animation__spin="property: rotation; to: 0 360 0; dur: 800; easing: linear; loop: true"
+            ></a-gltf-model>
+
+            <!-- 3. 字幕气泡 -->
+            <a-entity 
+                id="bubble"
+                position="0.45 0.45 0.1" 
+                scale="0 0 0"
+                animation__pop="property: scale; to: 1 1 1; dur: 500; delay: 2400; easing: easeOutBack; startEvents: play-all">
+                <a-entity geometry="primitive: plane; width: 1.6; height: 0.6" material="color: white; opacity: 0.95"></a-entity>
+                <a-text value="I AM A GENIUS!" color="#b91d1d" align="center" width="4" position="0 0.12 0.01" font="https://cdn.aframe.io/fonts/Exo2Bold.fnt"></a-text>
+                <a-text value="\u6211\u53ef\u662f\u5929\u624d\u554a\uff01" color="#b91d1d" align="center" width="3.5" position="0 -0.15 0.01" 
+                        font="https://cdn.jsdelivr.net/gh/fcor/aframe-fonts@master/fonts/notosanscjkjp/NotoSansCJKjp-msdf.json"></a-text>
+            </a-entity>
+
+            <a-light type="ambient" intensity="1.1"></a-light>
+            <a-light type="directional" position="1 2 1" intensity="0.5"></a-light>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        const log = (msg) => {
+            const el = document.getElementById('debug-panel');
+            el.style.display = 'block';
+            el.innerText += "\n> " + msg;
+        };
+
+        const startBtn = document.querySelector('#start-button');
+        const overlay = document.querySelector('#ui-overlay');
+        const scene = document.querySelector('a-scene');
+        const target = document.querySelector('#ar-target');
+        
+        const sakuragi = document.querySelector('#sakuragi');
+        const ball = document.querySelector('#basketball');
+        const bubble = document.querySelector('#bubble');
+
+        // 模型报错监控
+        ball.addEventListener('model-error', () => log("🚨 篮球 ball.glb 未找到或损坏！"));
+        sakuragi.addEventListener('model-error', () => log("🚨 樱木 jersey.glb 未找到！"));
+
+        startBtn.addEventListener('click', async () => {
+            startBtn.style.display = 'none';
+            document.querySelector('#loading-text').style.display = 'block';
+
+            const arSystem = scene.systems["mindar-image-system"];
+            try {
+                await arSystem.start();
+                log("系统运行中，请对准证件照...");
+                overlay.style.opacity = '0';
+                setTimeout(() => { 
+                    overlay.style.display = 'none'; 
+                    document.querySelector('#info-text').style.opacity = '1';
+                }, 600);
+            } catch (err) {
+                log("摄像头错误: " + err.message);
+            }
+        });
+
+        // 核心：强制复位与触发链
+        target.addEventListener("targetFound", () => {
+            log("🎯 识别成功！正在激活天才模式...");
+
+            // 第一步：在发出动作指令前，强制将模型重置回原点，确保反复扫也能动
+            sakuragi.setAttribute('position', '0 -0.5 0');
+            ball.setAttribute('position', '0.2 -0.2 0.2');
+            bubble.setAttribute('scale', '0 0 0');
+
+            // 第二步：稍微延迟一点发送播放指令，让 A-Frame 反应过来
+            setTimeout(() => {
+                // 如果模型有内部骨骼动画，重新挂载让它也重新播放
+                sakuragi.removeAttribute('animation-mixer');
+                sakuragi.setAttribute('animation-mixer', 'clip: *; loop: once; clampWhenFinished: true');
+
+                // 唤醒链式位移动画
+                sakuragi.emit('play-all');
+                ball.emit('play-all');
+                bubble.emit('play-all');
+            }, 50);
+
+            document.querySelector('#info-text').innerText = "🌸 天才降临！生日快乐！ 🌸";
+            document.querySelector('#info-text').style.color = "#FFD700";
+        });
+
+        // 樱花组件
+        AFRAME.registerComponent('sakura-rain', {
+            init: function () {
+                for (let i = 0; i < 30; i++) {
+                    const petal = document.createElement('a-entity');
+                    petal.setAttribute('geometry', { primitive: 'plane', width: 0.04, height: 0.03 });
+                    petal.setAttribute('material', { color: '#ffb7c5', transparent: true, opacity: 0.8, side: 'double' });
+                    petal.setAttribute('position', {x: (Math.random()-0.5)*3, y: Math.random()*2+1, z: (Math.random()-0.5)*1.5});
+                    this.el.appendChild(petal);
+                    
+                    const speed = Math.random() * 0.006 + 0.002;
+                    setInterval(() => {
+                        let pos = petal.getAttribute('position');
+                        pos.y -= speed;
+                        if (pos.y < -1) pos.y = 1.5;
+                        petal.setAttribute('position', pos);
+                    }, 20);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
