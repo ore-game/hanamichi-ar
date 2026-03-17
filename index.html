@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <title>GENIUS 10 - 樱木花道 AR 庆生限定</title>
+    <!-- 核心库：使用 MindAR 1.2.2 稳定版 -->
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; font-family: -apple-system, 'PingFang SC', sans-serif; }
+        
+        /* 启动封面：粉色樱花渐变视觉 */
+        #ui-overlay {
+            position: absolute; width: 100%; height: 100%; 
+            background: linear-gradient(135deg, #ffafbd 0%, #ff758c 100%);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: white; z-index: 10000; text-align: center;
+            transition: opacity 0.6s ease;
+        }
+        
+        #start-button {
+            padding: 20px 60px; font-size: 22px; background: #fff; color: #ff758c;
+            border: none; border-radius: 50px; cursor: pointer; font-weight: bold;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); letter-spacing: 2px;
+            transition: transform 0.2s;
+            -webkit-appearance: none;
+        }
+        #start-button:active { transform: scale(0.95); }
+
+        #loading-text { 
+            display: none; color: white; margin-top: 20px; 
+            font-weight: bold; animation: blink 1.2s infinite; 
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        /* 底部引导提示 */
+        .hint { 
+            position: absolute; bottom: 30px; width: 100%; text-align: center; 
+            color: white; z-index: 10; font-weight: bold; 
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5); pointer-events: none;
+            opacity: 0; transition: opacity 0.5s;
+        }
+
+        /* 隐藏 MindAR 默认加载 UI */
+        .mindar-ui-loading, .mindar-ui-scanning { display: none !important; }
+    </style>
+</head>
+
+<body>
+    <!-- 启动封面 -->
+    <div id="ui-overlay">
+        <div style="font-size: 60px; margin-bottom: 10px;">🌸</div>
+        <h1 style="font-size: 2.5rem; margin: 0; letter-spacing: 3px;">GENIUS 10</h1>
+        <p style="margin-bottom: 40px; opacity: 0.9; letter-spacing: 1px;">樱木花道生日会 AR 限定</p>
+        <button id="start-button">唤醒天才花道</button>
+        <div id="loading-text">正在召唤天才花道...</div>
+    </div>
+
+    <!-- 扫描提示 -->
+    <div class="hint" id="info-text">对准卡片正面，看天才灌篮！</div>
+
+    <!-- AR 场景 -->
+    <a-scene 
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no;" 
+        color-space="sRGB" 
+        renderer="colorManagement: true, physicallyCorrectLights" 
+        vr-mode-ui="enabled: false" 
+        device-orientation-permission-ui="enabled: false">
+        
+        <a-assets>
+            <a-asset-item id="sakuragiModel" src="./jersey.glb" crossorigin="anonymous"></a-asset-item>
+            <a-asset-item id="ballModel" src="./ball.glb" crossorigin="anonymous"></a-asset-item>
+        </a-assets>
+
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <a-entity mindar-image-target="targetIndex: 0" id="ar-target">
+            <!-- 樱花飘落粒子 -->
+            <a-entity sakura-falling></a-entity>
+
+            <!-- 篮架系统 -->
+            <a-entity id="hoop-system" position="0.3 0.6 -0.15" scale="0.6 0.6 0.6">
+                <a-box position="0 0.3 -0.05" width="1.2" height="0.8" depth="0.05" color="white"></a-box>
+                <a-box position="0 0.18 0" width="0.45" height="0.3" depth="0.02" color="#b91d1d" material="wireframe: true"></a-box>
+                <a-torus position="0 0 0.2" rotation="90 0 0" radius="0.22" radius-tubular="0.015" color="#b91d1d"></a-torus>
+                <a-cone position="0 -0.2 0.2" radius-bottom="0.12" radius-top="0.22" height="0.4" color="white" material="opacity: 0.5; transparent: true; wireframe: true"></a-cone>
+            </a-entity>
+
+            <!-- 樱木动画序列 -->
+            <a-gltf-model 
+                id="sakuragi"
+                src="#sakuragiModel"
+                position="0 -0.5 0" 
+                scale="0.65 0.65 0.65"
+                animation-mixer="clip: *; loop: once; clampWhenFinished: true"
+                animation__jump="property: position; from: 0 -0.5 0; to: 0 0.4 0; dur: 800; easing: easeOutQuad; startEvents: targetFound"
+                animation__land="property: position; from: 0 0.4 0; to: 0 -0.2 0; dur: 400; delay: 1200; easing: easeInQuad; startEvents: targetFound"
+                animation__bend="property: position; from: 0 -0.2
