@@ -3,8 +3,8 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
-    <title>樱木花道：天才时刻 AR</title>
-    <!-- 引入核心库，统一使用稳定版 CDN -->
+    <title>樱木花道：生日限定 AR</title>
+    <!-- 引入核心库 -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccarthy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
@@ -12,7 +12,7 @@
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Arial Black', sans-serif; background-color: #000; }
         
-        /* 粉丝应援封面：粉色樱花渐变 */
+        /* 粉丝页封面 */
         #ui-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, #ffafbd 0%, #ffc3a0 100%);
@@ -20,85 +20,52 @@
             color: white; z-index: 2000; text-align: center;
             transition: opacity 0.8s ease;
         }
-        
         #start-button {
-            padding: 22px 60px; font-size: 26px; background: white; color: #ff758c;
+            padding: 22px 60px; font-size: 24px; background: white; color: #ff758c;
             border: none; border-radius: 60px; cursor: pointer; font-weight: 900;
-            box-shadow: 0 12px 30px rgba(0,0,0,0.2); transition: 0.3s; margin-top: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 30px;
         }
-        #start-button:active { transform: scale(0.95); }
 
-        /* 漫画风格字幕气泡 */
+        /* 状态诊断面板：一眼看出文件是否 404 */
+        #debug-panel {
+            position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.7);
+            color: #0f0; padding: 10px; font-size: 12px; z-index: 3000; border-radius: 5px;
+            pointer-events: none; line-height: 1.5;
+        }
+
+        /* 漫画字幕气泡 */
         #bubble {
             position: fixed; bottom: 35%; left: 50%; transform: translateX(-50%);
-            background: white; padding: 20px 40px; border-radius: 60px;
-            border: 5px solid #000; box-shadow: 10px 10px 0px rgba(0,0,0,0.2);
+            background: white; padding: 20px 30px; border-radius: 50px;
+            border: 4px solid #000; box-shadow: 8px 8px 0px rgba(0,0,0,0.2);
             display: none; z-index: 100; font-weight: 900; color: #000; 
-            text-align: center; font-size: 36px; font-style: italic;
+            text-align: center; font-size: 30px; font-style: italic;
         }
         #bubble:after {
-            content: ''; position: absolute; bottom: -25px; left: 50px;
-            border-width: 25px 25px 0 0; border-style: solid;
+            content: ''; position: absolute; bottom: -20px; left: 40px;
+            border-width: 20px 20px 0 0; border-style: solid;
             border-color: white transparent transparent transparent;
-        }
-
-        .scanning-hint {
-            position: fixed; bottom: 40px; width: 100%; text-align: center;
-            color: white; font-size: 16px; z-index: 10; text-shadow: 0 2px 5px rgba(0,0,0,1);
-            pointer-events: none; opacity: 0.8;
         }
     </style>
 </head>
 <body>
 
-    <script>
-        // 🌸 樱花粒子组件：高频旋转 + 随机摆动
-        AFRAME.registerComponent('sakura-particles', {
-            init: function () {
-                this.petals = [];
-                for (let i = 0; i < 45; i++) {
-                    const petal = document.createElement('a-entity');
-                    petal.setAttribute('geometry', {primitive: 'plane', width: 0.08, height: 0.05});
-                    petal.setAttribute('material', {color: '#ffb7c5', transparent: true, opacity: 0.85, side: 'double'});
-                    const x = (Math.random() - 0.5) * 4;
-                    const y = Math.random() * 4 + 1;
-                    const z = (Math.random() - 0.5) * 2;
-                    petal.setAttribute('position', {x, y, z});
-                    petal.userData = { 
-                        speed: Math.random() * 0.012 + 0.008,
-                        osc: Math.random() * 0.02,
-                        phase: Math.random() * Math.PI * 2
-                    };
-                    this.el.appendChild(petal);
-                    this.petals.push(petal);
-                }
-            },
-            tick: function (t) {
-                this.petals.forEach(p => {
-                    const pos = p.getAttribute('position');
-                    const data = p.userData;
-                    pos.y -= data.speed;
-                    pos.x += Math.sin(t/500 + data.phase) * data.osc;
-                    if (pos.y < -1.5) pos.y = 3;
-                    p.setAttribute('position', pos);
-                    const rot = p.getAttribute('rotation');
-                    p.setAttribute('rotation', {x: rot.x + 2, y: rot.y + 1, z: rot.z + 1});
-                });
-            }
-        });
-    </script>
+    <!-- 诊断面板 -->
+    <div id="debug-panel">
+        模型状态: <span id="model-status">等待加载...</span><br>
+        篮球状态: <span id="ball-status">等待加载...</span><br>
+        动画唤醒: <span id="anim-status">未激活</span>
+    </div>
 
-    <!-- UI 封面 -->
+    <!-- 封面层 -->
     <div id="ui-overlay">
-        <h1 style="font-size: 4.5rem; margin: 0; font-weight: 900; letter-spacing: -3px;">GENIUS 10</h1>
-        <p style="opacity: 0.9; font-size: 1.4rem; margin-top: 10px;">“因为我是天才啊！”</p>
+        <h1 style="font-size: 4rem; margin: 0; font-weight: 900;">GENIUS 10</h1>
+        <p style="opacity: 0.9; font-size: 1.3rem;">“因为我是天才啊！”</p>
         <button id="start-button">唤醒天才花道</button>
     </div>
 
-    <!-- 字幕 -->
+    <!-- 字幕气泡 -->
     <div id="bubble">I'M A GENIUS!</div>
-    
-    <div class="scanning-hint" id="hint-text">请对准识别卡片正面</div>
 
     <a-scene 
         mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: yes;" 
@@ -106,30 +73,29 @@
         vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         
         <a-assets>
-            <!-- 再次确认：hanamichii.glb 是合并了所有动作的长动画模型 -->
-            <a-asset-item id="hanamichiModel" src="hanamichii.glb" crossorigin="anonymous"></a-asset-item>
-            <a-asset-item id="ballModel" src="ball.glb" crossorigin="anonymous"></a-asset-item>
+            <!-- 再次确认：hanamichii.glb 是合并了动作的模型 -->
+            <a-asset-item id="hanamichiModel" src="hanamichii.glb"></a-asset-item>
+            <a-asset-item id="ballModel" src="ball.glb"></a-asset-item>
         </a-assets>
 
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0" id="target-anchor">
             
+            <!-- 1. 樱花特效 -->
             <a-entity sakura-particles></a-entity>
 
-            <!-- 【高级竞技篮筐：代码硬连】 -->
-            <a-entity id="hoop-system" position="0 1.4 -1.4" visible="false">
+            <!-- 2. 【高级简约篮筐】拒绝灯笼感 -->
+            <a-entity id="hoop-set" position="0 1.5 -1.5" visible="false">
                 <!-- 篮板 -->
-                <a-box position="0 0.6 0" width="1.6" height="1" depth="0.04" color="white"></a-box>
-                <!-- 红色标靶框 -->
-                <a-box position="0 0.55 0.03" width="0.6" height="0.45" depth="0.01" color="#b91d1d" material="wireframe: true; wireframeLinewidth: 8"></a-box>
+                <a-box position="0 0.5 0" width="1.6" height="1" depth="0.04" color="white"></a-box>
+                <!-- 红色方框 -->
+                <a-box position="0 0.5 0.03" width="0.6" height="0.45" depth="0.01" color="#b91d1d" material="wireframe: true; wireframeLinewidth: 5"></a-box>
                 <!-- 橙色篮圈 -->
-                <a-torus position="0 0.1 0.4" rotation="90 0 0" radius="0.25" tube="0.018" color="#ff4500"></a-torus>
-                <!-- 轻盈线框篮网 -->
-                <a-cone position="0 -0.15 0.4" radius-top="0.25" radius-bottom="0.12" height="0.5" open-ended="true" material="color: white; opacity: 0.3; transparent: true; wireframe: true"></a-cone>
+                <a-torus position="0 0.1 0.45" rotation="90 0 0" radius="0.25" tube="0.02" color="orange"></a-torus>
             </a-entity>
 
-            <!-- 樱木：初始背号10面对相机 (Rotation 180) -->
+            <!-- 3. 樱木主体：初始背面视角 -->
             <a-entity id="character"
                       gltf-model="#hanamichiModel" 
                       position="0 -0.8 0" 
@@ -137,7 +103,7 @@
                       rotation="0 180 0" 
                       visible="false">
                 
-                <!-- 篮球：初始手部位 -->
+                <!-- 篮球 -->
                 <a-entity id="basketball"
                           gltf-model="#ballModel"
                           position="0.2 1.3 0.3" 
@@ -146,65 +112,103 @@
                 </a-entity>
             </a-entity>
 
-            <a-light type="ambient" intensity="1.3"></a-light>
-            <a-light type="directional" position="1 4 2" intensity="1.2"></a-light>
+            <a-light type="ambient" intensity="1.2"></a-light>
+            <a-light type="directional" position="1 4 2" intensity="1"></a-light>
         </a-entity>
     </a-scene>
 
     <script>
-        const startBtn = document.querySelector('#start-button');
-        const overlay = document.querySelector('#ui-overlay');
-        const scene = document.querySelector('a-scene');
-        const character = document.querySelector('#character');
-        const ball = document.querySelector('#basketball');
-        const hoop = document.querySelector('#hoop-system');
-        const bubble = document.getElementById('bubble');
-
-        startBtn.addEventListener('click', () => {
-            overlay.style.opacity = '0';
-            scene.systems["mindar-image-system"].start();
-            setTimeout(() => { overlay.style.display = 'none'; }, 800);
+        // 🌸 樱花特效组件
+        AFRAME.registerComponent('sakura-particles', {
+            init: function () {
+                this.petals = [];
+                for (let i = 0; i < 35; i++) {
+                    const petal = document.createElement('a-plane');
+                    petal.setAttribute('width', '0.08'); petal.setAttribute('height', '0.05');
+                    petal.setAttribute('material', {color: '#ffb7c5', transparent: true, opacity: 0.8, side: 'double'});
+                    const x = (Math.random() - 0.5) * 4;
+                    const y = Math.random() * 4 + 1;
+                    const z = (Math.random() - 0.5) * 2;
+                    petal.setAttribute('position', {x, y, z});
+                    petal.userData = { speed: Math.random() * 0.01 + 0.01 };
+                    this.el.appendChild(petal);
+                    this.petals.push(petal);
+                }
+            },
+            tick: function () {
+                this.petals.forEach(p => {
+                    let pos = p.getAttribute('position');
+                    pos.y -= p.userData.speed;
+                    if (pos.y < -1) pos.y = 3;
+                    p.setAttribute('position', pos);
+                    let rot = p.getAttribute('rotation');
+                    p.setAttribute('rotation', {x: rot.x+2, y: rot.y+1, z: rot.z+1});
+                });
+            }
         });
 
+        const startBtn = document.querySelector('#start-button');
+        const overlay = document.querySelector('#ui-overlay');
+        const sceneEl = document.querySelector('a-scene');
+        const character = document.querySelector('#character');
+        const ball = document.querySelector('#basketball');
+        const hoop = document.querySelector('#hoop-set');
+        const bubble = document.querySelector('#bubble');
+
+        // 诊断逻辑
+        const mStatus = document.getElementById('model-status');
+        const bStatus = document.getElementById('ball-status');
+        const aStatus = document.getElementById('anim-status');
+
+        character.addEventListener('model-loaded', () => { mStatus.innerText = "✅ 载入完成"; mStatus.style.color = "#0f0"; });
+        character.addEventListener('model-error', () => { mStatus.innerText = "❌ 404文件丢失!"; mStatus.style.color = "#f00"; });
+        ball.addEventListener('model-loaded', () => { bStatus.innerText = "✅ 载入完成"; bStatus.style.color = "#0f0"; });
+
+        startBtn.addEventListener('click', () => {
+            overlay.style.display = 'none';
+            sceneEl.systems["mindar-image-system"].start();
+        });
+
+        // 识别成功：天才降临序列
         document.querySelector('#target-anchor').addEventListener("targetFound", () => {
-            console.log("天才降临序列启动");
+            console.log("识别成功");
             character.setAttribute('visible', 'true');
             ball.setAttribute('visible', 'true');
             hoop.setAttribute('visible', 'true');
             
-            // 【动画暴力唤醒】先移除再添加，确保触发
+            // 【动画暴力起搏器】解决 T-Pose
             character.removeAttribute('animation-mixer');
             setTimeout(() => {
-                character.setAttribute('animation-mixer', {
-                    clip: '*', 
-                    loop: 'once', 
-                    clampWhenFinished: true
-                });
-            }, 100);
+                character.setAttribute('animation-mixer', {clip: '*', loop: 'once', clampWhenFinished: true});
+                aStatus.innerText = "🔥 正在播放动作";
+                aStatus.style.color = "#0f0";
+            }, 200);
 
-            let start = Date.now();
-            const runSequence = () => {
-                let t = (Date.now() - start) / 1000;
+            let startTime = Date.now();
+            const animateSequence = () => {
+                let elapsed = (Date.now() - startTime) / 1000;
 
-                // 1. 灌篮起跳：球向 z 轴负方向（篮板方向）位移
-                if (t >= 2.0 && t < 2.7) {
-                    ball.setAttribute('position', {x: 0, y: 3.5, z: -0.8}); 
+                // 1. 灌篮阶段 (2.0s - 2.8s)：球向篮筐飞
+                if (elapsed >= 2.0 && elapsed < 2.8) {
+                    ball.setAttribute('position', {x: 0, y: 3.5, z: -1.0}); 
                 } 
-                // 2. 空心入筐：球向下位移
-                else if (t >= 2.7 && t < 4.2) {
-                    ball.setAttribute('position', {x: 0, y: 1.0, z: -1.0});
+                // 2. 穿心入网 (2.8s - 4.2s)：球在篮下
+                else if (elapsed >= 2.8 && elapsed < 4.2) {
+                    ball.setAttribute('position', {x: 0, y: 1.0, z: -1.4});
                 }
-                // 3. 绝杀定格：4.5秒球回手 + 180度转身 + 字幕
-                else if (t >= 4.5) {
+                // 3. 落地瞬间 (4.5s)：球瞬间回到手中，人物瞬间转身面对观众
+                else if (elapsed >= 4.5) {
+                    // 球回手
                     ball.setAttribute('position', {x: 0.2, y: 1.3, z: 0.3});
+                    // 字幕弹出
                     bubble.style.display = 'block';
-                    // 强制从背面(180)转到正面(0)
+                    // 强制转身面对相机
                     character.setAttribute('rotation', '0 0 0');
                     return;
                 }
-                requestAnimationFrame(runSequence);
+                requestAnimationFrame(animateSequence);
             };
-            runSequence();
+            animateSequence();
         });
 
         document.querySelector('#target-anchor').addEventListener("targetLost", () => {
