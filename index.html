@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <title>樱木花道：生日限定 AR</title>
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.0.0/dist/aframe-extras.min.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Arial Black', sans-serif; background-color: #000; }
+        
+        #ui-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #ffafbd 0%, #ffc3a0 100%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; z-index: 2000; text-align: center;
+            transition: opacity 0.8s ease;
+        }
+        
+        /* 改进的按钮状态 */
+        #start-button {
+            padding: 22px 60px; font-size: 24px; background: white; color: #ff758c;
+            border: none; border-radius: 60px; cursor: pointer; font-weight: 900;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 30px;
+            transition: all 0.3s ease;
+        }
+        
+        /* 禁用时的灰色状态 */
+        #start-button:disabled {
+            background: #e0e0e0; color: #999; box-shadow: none; cursor: not-allowed;
+            transform: scale(0.95);
+        }
+
+        #debug-panel {
+            position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8);
+            color: #fff; padding: 15px; font-size: 13px; z-index: 3000; border-radius: 8px;
+            pointer-events: none; line-height: 1.6; border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        #bubble {
+            position: fixed; bottom: 30%; left: 50%; transform: translateX(-50%);
+            background: white; padding: 20px 30px; border-radius: 50px;
+            border: 4px solid #000; box-shadow: 8px 8px 0px rgba(0,0,0,0.2);
+            display: none; z-index: 100; font-weight: 900; color: #000; 
+            text-align: center; font-size: 30px; font-style: italic;
+        }
+        #bubble:after {
+            content: ''; position: absolute; bottom: -20px; left: 40px;
+            border-width: 20px 20px 0 0; border-style: solid;
+            border-color: white transparent transparent transparent;
+        }
+        
+        #error-msg {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(200, 0, 0, 0.95); color: white; padding: 25px; border-radius: 12px;
+            z-index: 9999; display: none; font-weight: bold; text-align: left; line-height: 1.6;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 80%; max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="debug-panel">
+        👤 樱木: <span id="model-status" style="color:#aaa;">加载中...</span><br>
+        ⚡ 引擎: <span id="anim-status" style="color:#aaa;">待命</span>
+    </div>
+
+    <!-- 精准错误弹窗 -->
+    <div id="error-msg"></div>
+
+    <div id="ui-overlay">
+        <h1 style="font-size: 4rem; margin: 0; font-weight: 900;">GENIUS 10</h1>
+        <p style="opacity: 0.9; font-size: 1.3rem;">“因为我是天才啊！”</p>
+        <!-- 初始状态设为 disabled -->
+        <button id="start-button" disabled>正在初始化AR引擎...</button>
+    </div>
+
+    <div id="bubble">I'M A GENIUS!</div>
+
+    <script>
+        AFRAME.registerComponent('sakura-particles', {
+            init: function () {
+                this.petals = [];
+                for (let i = 0; i < 35; i++) {
+                    const petal = document.createElement('a-plane');
+                    petal.setAttribute('width', '0.08'); petal.setAttribute('height', '0.05');
+                    petal.setAttribute('material', {color: '#ffb7c5', transparent: true, opacity: 0.85, side: 'double'});
+                    const x = (Math.random() - 0.5) * 4;
+                    const y = Math.random() * 4 + 1;
+                    const z = (Math.random() - 0.5) * 3;
+                    petal.setAttribute('position', {x, y, z});
+                    petal.userData = { speed: Math.random() * 0.01 + 0.01 };
+                    this.el.appendChild(petal);
+                    this.petals.push(petal);
+                }
+            },
+            tick: function () {
+                this.petals.forEach(p => {
+                    let pos = p.getAttribute('position');
+                    pos.y -= p.userData.speed;
+                    if (pos.y < -1) pos.y = 3;
+                    p.setAttribute('position', pos);
+                    let rot = p.getAttribute('rotation');
+                    p.setAttribute('rotation', {x: rot.x+2, y: rot.y+1, z: rot.z+1});
+                });
+            }
+        });
+    </script>
+
+    <!-- 确保识别文件路径带 ./，防止跨域问题 -->
+    <a-scene 
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no;" 
+        color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" 
+        vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+        
+        <a-assets>
+            <a-asset-item id="hanamichiModel" src="./hanamichii.glb"></a-asset-item>
+            <a-asset-item id="ballModel" src="./ball.glb"></a-asset-item>
+        </a-assets>
+
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <a-entity mindar-image-target="targetIndex: 0" id="target-anchor">
+            <a-entity sakura-particles></a-entity>
+
+            <a-entity id="scene-wrapper" scale="0.65 0.65 0.65" position="0 -0.5 -1.0">
+
+                <!-- 纯正的实心拼装篮筐 -->
+                <a-entity id="hoop-set" position="0 2.2 -3.5" visible="false">
+                    <a-cylinder position="0 -1.5 -0.2" radius="0.1" height="3" color="#111"></a-cylinder>
+                    <a-box position="0 0.5 0" width="1.8" height="1.05" depth="0.02" color="#ffffff" material="opacity: 0.7; transparent: true"></a-box>
+                    
+                    <a-plane position="0 0.675 0.015" width="0.6" height="0.02" color="#e84118"></a-plane>
+                    <a-plane position="0 0.225 0.015" width="0.6" height="0.02" color="#e84118"></a-plane>
+                    <a-plane position="-0.29 0.45 0.015" width="0.02" height="0.47" color="#e84118"></a-plane>
+                    <a-plane position="0.29 0.45 0.015" width="0.02" height="0.47" color="#e84118"></a-plane>
+                    
+                    <a-box position="0 0.05 0.1" width="0.1" height="0.05" depth="0.2" color="#e84118"></a-box>
+                    <a-torus position="0 0.05 0.35" rotation="90 0 0" radius="0.225" tube="0.015" color="#e84118"></a-torus>
+                    <a-cone position="0 -0.15 0.35" radius-top="0.225" radius-bottom="0.13" height="0.4" open-ended="true" color="#ffffff" material="opacity: 0.25; transparent: true; side: double"></a-cone>
+                </a-entity>
+
+                <a-entity id="character" gltf-model="#hanamichiModel" position="0 -0.8 0" scale="1 1 1" rotation="0 180 0" visible="false"></a-entity>
+                <a-entity id="basketball" gltf-model="#ballModel" position="-0.2 0.5 -0.3" scale="0.5 0.5 0.5" visible="false"></a-entity>
+
+            </a-entity>
+
+            <a-light type="ambient" intensity="1.2"></a-light>
+            <a-light type="directional" position="0 3 4" intensity="1.8"></a-light>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const startBtn = document.querySelector('#start-button');
+            const overlay = document.querySelector('#ui-overlay');
+            const sceneEl = document.querySelector('a-scene');
+            const errorMsg = document.querySelector('#error-msg');
+            const mStatus = document.getElementById('model-status');
+            const character = document.querySelector('#character');
+
+            // 模型报错抓取
+            character.addEventListener('model-error', () => { 
+                mStatus.innerText = "❌ 文件丢失"; mStatus.style.color = "red"; 
+            });
+            character.addEventListener('model-loaded', () => { 
+                mStatus.innerText = "✅ 就绪"; mStatus.style.color = "#0f0"; 
+            });
+
+            // 点击唤醒：加入完整的异步错误捕获
+            startBtn.addEventListener('click', () => {
+                overlay.style.display = 'none';
+                
+                const arSystem = sceneEl.systems["mindar-image-system"];
+                
+                // 双重保险：如果系统此时仍然没挂载
+                if (!arSystem) {
+                    errorMsg.innerHTML = "❌ 引擎挂载失败！<br>请检查您的浏览器是否支持WebAR，或尝试刷新页面。";
+                    errorMsg.style.display = "block";
+                    return;
+                }
+
+                // 安全调用异步的 start 方法
+                arSystem.start().then(() => {
+                    console.log("摄像头启动成功");
+                }).catch((err) => {
+                    // 如果被拒绝或出错，直接把底层系统报错打印出来
+                    errorMsg.innerHTML = `❌ 摄像头启动失败！<br><br>系统原音：${err.name} - ${err.message}<br><br>请确认：<br>1. 是否允许了摄像头权限<br>2. 是否使用了 HTTPS 访问<br>3. 建议使用 Safari 或 Chrome 浏览器。`;
+                    errorMsg.style.display = "block";
+                });
+            });
+
+            // 监听 MindAR 引擎内部抛出的错误 (比如 targets.mind 失效)
+            sceneEl.addEventListener("arError", (event) => {
+                errorMsg.innerHTML = "❌ AR识别库加载失败！<br><br>请检查 GitHub 仓库里是否存在正确的 targets.mind 文件。";
+                errorMsg.style.display = "block";
+            });
+
+            // --- 以下是动画控制逻辑 ---
+            const ball = document.querySelector('#basketball');
+            const hoop = document.querySelector('#hoop-set');
+            const bubble = document.querySelector('#bubble');
+            const aStatus = document.getElementById('anim-status');
+
+            let currentAnimFrame = null;
+            let playState = 0; 
+
+            document.querySelector('#target-anchor').addEventListener("targetFound", () => {
+                character.setAttribute('visible', 'true');
+                ball.setAttribute('visible', 'true');
+                hoop.setAttribute('visible', 'true');
+                
+                character.setAttribute('rotation', '0 180 0');
+                bubble.style.display = 'none';
+                playState = 0; 
+                ball.removeAttribute('animation'); 
+
+                character.removeAttribute('animation-mixer');
+                setTimeout(() => {
+                    character.setAttribute('animation-mixer', 'clip: *; loop: once; clampWhenFinished: true');
+                    aStatus.innerText = "🔥 完美运行";
+                    aStatus.style.color = "#0f0";
+                }, 50);
+
+                let startTime = Date.now();
+                const animateSequence = () => {
+                    let elapsed = (Date.now() - startTime) / 1000;
+
+                    if (elapsed >= 1.8 && playState === 0) {
+                        playState = 1;
+                        ball.setAttribute('animation', 'property: position; to: 0 3.0 -3.15; dur: 800; easing: easeOutQuad');
+                    } 
+                    else if (elapsed >= 2.6 && playState === 1) {
+                        playState = 2;
+                        ball.setAttribute('animation', 'property: position; to: 0 0.5 -3.15; dur: 1000; easing: easeInQuad');
+                    }
+                    else if (elapsed >= 4.5 && playState === 2) {
+                        playState = 3;
+                        ball.removeAttribute('animation'); 
+                        ball.setAttribute('position', {x: 0.2, y: 0.5, z: 0.3}); 
+                        bubble.style.display = 'block';
+                        return; 
+                    }
+                    currentAnimFrame = requestAnimationFrame(animateSequence);
+                };
+                if (currentAnimFrame) cancelAnimationFrame(currentAnimFrame);
+                animateSequence();
+            });
+
+            document.querySelector('#target-anchor').addEventListener("targetLost", () => {
+                bubble.style.display = 'none';
+                if (currentAnimFrame) cancelAnimationFrame(currentAnimFrame);
+            });
+        });
+    </script>
+</body>
+</html>
