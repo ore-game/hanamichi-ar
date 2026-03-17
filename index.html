@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <title>樱木花道：生日限定 AR</title>
+    <!-- 核心库引入：A-Frame, Mind-AR, 动画混合器 -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccarthy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Arial Black', sans-serif; background-color: #000; }
+        
+        /* 粉丝页应援 UI：粉色渐变遮罩层 */
+        #ui-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #ffafbd 0%, #ffc3a0 100%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; z-index: 2000; text-align: center;
+            transition: opacity 0.8s ease;
+        }
+        
+        #start-button {
+            padding: 20px 50px; font-size: 24px; background: white; color: #ff758c;
+            border: none; border-radius: 50px; cursor: pointer; font-weight: 900;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); transition: 0.3s; margin-top: 30px;
+        }
+        #start-button:active { transform: scale(0.95); }
+
+        /* 漫画风格气泡对话框 */
+        #bubble {
+            position: fixed; bottom: 32%; left: 50%; transform: translateX(-50%);
+            background: white; padding: 20px 30px; border-radius: 50px;
+            border: 4px solid #000; box-shadow: 8px 8px 0px rgba(0,0,0,0.2);
+            display: none; z-index: 100; font-weight: 900; color: #000; 
+            text-align: center; font-size: 32px; font-style: italic;
+        }
+        /* 气泡小尾巴 */
+        #bubble:after {
+            content: ''; position: absolute; bottom: -22px; left: 40px;
+            border-width: 22px 22px 0 0; border-style: solid;
+            border-color: white transparent transparent transparent;
+        }
+
+        .scanning-hint {
+            position: fixed; bottom: 40px; width: 100%; text-align: center;
+            color: white; font-size: 16px; z-index: 10; text-shadow: 0 2px 5px rgba(0,0,0,1);
+            pointer-events: none; opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 封面层：GENIUS 10 -->
+    <div id="ui-overlay">
+        <h1 style="font-size: 4rem; margin: 0; font-weight: 900; letter-spacing: -2px;">GENIUS 10</h1>
+        <p style="opacity: 0.9; font-size: 1.3rem; margin-top: 10px;">“因为我是天才啊！”</p>
+        <button id="start-button">唤醒天才花道</button>
+    </div>
+
+    <!-- 漫画字幕：I'M A GENIUS! -->
+    <div id="bubble">I'M A GENIUS!</div>
+    
+    <div class="scanning-hint" id="hint-text">准备好见证天才降临了吗？</div>
+
+    <!-- AR 场景容器 -->
+    <a-scene 
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: yes;" 
+        color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" 
+        vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+        
+        <a-assets>
+            <!-- 引入你的模型：hanamichii.glb 是合并了动作的模型 -->
+            <a-asset-item id="hanamichiModel" src="./hanamichii.glb"></a-asset-item>
+            <a-asset-item id="ballModel" src="./ball.glb"></a-asset-item>
+        </a-assets>
+
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <!-- 图像识别锚点 -->
+        <a-entity mindar-image-target="targetIndex: 0" id="target-anchor">
+            
+            <!-- 樱木主体：初始旋转180度实现背面视角 -->
+            <a-entity id="character"
+                      gltf-model="#hanamichiModel" 
+                      position="0 -0.6 0" 
+                      scale="0.65 0.65 0.65" 
+                      rotation="0 180 0"
+                      visible="false"
+                      animation-mixer="clip: *; loop: once; clampWhenFinished: true">
+                
+                <!-- 篮球：作为樱木的子级，方便跟随运动 -->
+                <a-entity id="basketball"
+                          gltf-model="#ballModel"
+                          position="0.2 1.3 0.3" 
+                          scale="0.3 0.3 0.3"
+                          visible="false">
+                </a-entity>
+
+            </a-entity>
+
+            <!-- 灯光组 -->
+            <a-light type="ambient" intensity="1.2"></a-light>
+            <a-light type="directional" position="1 2 1" intensity="1.5"></a-light>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        const startButton = document.querySelector('#start-button');
+        const uiOverlay = document.querySelector('#ui-overlay');
+        const sceneEl = document.querySelector('a-scene');
+        const character = document.querySelector('#character');
+        const ball = document.querySelector('#basketball');
+        const bubble = document.querySelector('#bubble');
+        const hintText = document.querySelector('#hint-text');
+
+        // 按钮点击：启动相机并揭开遮罩
+        startButton.addEventListener('click', () => {
+            uiOverlay.style.opacity = '0';
+            // 手动启动 AR 系统，确保权限被正确触发
+            sceneEl.systems["mindar-image-system"].start();
+            
+            setTimeout(() => { 
+                uiOverlay.style.display = 'none'; 
+                hintText.innerHTML = "请对准您的识别卡片正面";
+            }, 800);
+        });
+
+        // 识别成功：控制篮球轨迹和气泡
+        const targetAnchor = document.querySelector('#target-anchor');
+        
+        targetAnchor.addEventListener("targetFound", () => {
+            console.log("天才发现！");
+            character.setAttribute('visible', 'true');
+            ball.setAttribute('visible', 'true');
+            
+            let startTime = Date.now();
+            
+            const runBallAnimation = () => {
+                let elapsed = (Date.now() - startTime) / 1000;
+
+                // 1. 灌篮飞向篮筐 (假设 2.2秒起跳)
+                if (elapsed >= 2.2 && elapsed < 2.8) {
+                    ball.setAttribute('position', {x: 0, y: 3.2, z: 1.6}); 
+                } 
+                // 2. 穿过篮网下落
+                else if (elapsed >= 2.8 && elapsed < 4.2) {
+                    ball.setAttribute('position', {x: 0, y: 1.4, z: 2.0});
+                }
+                // 3. 任务落地瞬间 (4.5秒后)：球瞬间传送回手心，弹出气泡
+                else if (elapsed >= 4.5) {
+                    // 球回到手部固定坐标 (根据你的模型微调)
+                    ball.setAttribute('position', {x: 0.2, y: 1.3, z: 0.3});
+                    
+                    // 弹出最终字幕
+                    bubble.style.display = 'block';
+                    bubble.innerHTML = "I'M A GENIUS!";
+                    return; // 结束逻辑循环
+                }
+
+                requestAnimationFrame(runBallAnimation);
+            };
+            runBallAnimation();
+        });
+
+        // 丢失目标：隐藏 UI
+        targetAnchor.addEventListener("targetLost", () => {
+            bubble.style.display = 'none';
+        });
+    </script>
+</body>
+</html>
