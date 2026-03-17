@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <title>樱木花道：生日限定 AR</title>
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <!-- 修复：将 aframe-extras 降级到与 A-Frame 1.3.0 完美兼容的 v6.1.1 版本 -->
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Arial Black', sans-serif; background-color: #000; }
+        
+        /* 【最强隐身衣】：强行在视觉上屏蔽 MindAR 引擎自带的默认加载和扫描界面 */
+        .mindar-ui-overlay, 
+        .mindar-ui-loading, 
+        .mindar-ui-scanning {
+            display: none !important;
+        }
+        
+        #ui-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #ffafbd 0%, #ffc3a0 100%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; z-index: 2000; text-align: center;
+            transition: opacity 0.8s ease;
+        }
+        
+        #start-button {
+            padding: 22px 60px; font-size: 24px; background: white; color: #ff758c;
+            border: none; border-radius: 60px; cursor: pointer; font-weight: 900;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-top: 30px;
+            transition: all 0.3s ease;
+        }
+        
+        #start-button:active { transform: scale(0.95); }
+
+        #debug-panel {
+            position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.6);
+            color: #fff; padding: 10px; font-size: 12px; z-index: 3000; border-radius: 8px;
+            pointer-events: none; line-height: 1.5; border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        #bubble {
+            position: fixed; bottom: 30%; left: 50%; transform: translateX(-50%);
+            background: white; padding: 20px 30px; border-radius: 50px;
+            border: 4px solid #000; box-shadow: 8px 8px 0px rgba(0,0,0,0.2);
+            display: none; z-index: 100; font-weight: 900; color: #000; 
+            text-align: center; font-size: 30px; font-style: italic;
+        }
+        #bubble:after {
+            content: ''; position: absolute; bottom: -20px; left: 40px;
+            border-width: 20px 20px 0 0; border-style: solid;
+            border-color: white transparent transparent transparent;
+        }
+        
+        .scanning-hint {
+            position: fixed; bottom: 40px; width: 100%; text-align: center;
+            color: white; font-size: 16px; z-index: 10; text-shadow: 0 2px 5px rgba(0,0,0,1);
+            pointer-events: none; opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="debug-panel">
+        👤 樱木模型: <span id="model-status" style="color:#aaa;">后台静默下载中...</span><br>
+        ⚡ 动画引擎: <span id="anim-status" style="color:#aaa;">就绪</span>
+    </div>
+
+    <!-- 粉色封面层，作为幕布盖在摄像头前面 -->
+    <div id="ui-overlay">
+        <h1 style="font-size: 4rem; margin: 0; font-weight: 900;">GENIUS 10</h1>
+        <p style="opacity: 0.9; font-size: 1.3rem;">“因为我是天才啊！”</p>
+        <button id="start-button">唤醒天才花道</button>
+    </div>
+
+    <div id="bubble">I'M A GENIUS!</div>
+    <div class="scanning-hint" id="hint-text">请对准识别卡片正面</div>
+
+    <!-- 【核心解法：删除 autoStart: false，彻底让引擎走默认的安全全自动启动流程】 -->
+    <a-scene 
+        mindar-image="imageTargetSrc: ./targets.mind;" 
+        color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" 
+        vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+        
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <a-entity mindar-image-target="targetIndex: 0" id="target-anchor">
+            
+            <a-entity id="scene-wrapper" scale="0.65 0.65 0.65" position="0 -0.5 -1.0">
+
+                <a-entity id="hoop-set" position="0 2.2 -3.5" visible="false">
+                    <a-cylinder position="0 -1.5 -0.2" radius="0.1" height="3" color="#111"></a-cylinder>
+                    <a-box position="0 0.5 0" width="1.8" height="1.05" depth="0.02" color="#ffffff" material="opacity: 0.7; transparent: true"></a-box>
+                    <a-plane position="0 0.675 0.015" width="0.6" height="0.02" color="#e84118"></a-plane>
+                    <a-plane position="0 0.225 0.015" width="0.6" height="0.02" color="#e84118"></a-plane>
+                    <a-plane position="-0.29 0.45 0.015" width="0.02" height="0.47" color="#e84118"></a-plane>
+                    <a-plane position="0.29 0.45 0.015" width="0.02" height="0.47" color="#e84118"></a-plane>
+                    <a-box position="0 0.05 0.1" width="0.1" height="0.05" depth="0.2" color="#e84118"></a-box>
+                    <a-torus position="0 0.05 0.35" rotation="90 0 0" radius="0.225" tube="0.015" color="#e84118"></a-torus>
+                    <a-cone position="0 -0.15 0.35" radius-top="0.225" radius-bottom="0.13" height="0.4" open-ended="true" color="#ffffff" material="opacity: 0.25; transparent: true; side: double"></a-cone>
+                </a-entity>
+
+                <a-entity id="character" 
+                          gltf-model="./hanamichii.glb" 
+                          position="0 0 0" 
+                          scale="1 1 1" 
+                          rotation="0 0 0" 
+                          visible="false"></a-entity>
+
+                <a-entity id="basketball" 
+                          gltf-model="./ball.glb" 
+                          position="0 0.5 0" 
+                          scale="0.5 0.5 0.5" 
+                          visible="false"></a-entity>
+
+            </a-entity>
+
+            <a-light type="ambient" intensity="1.2"></a-light>
+            <a-light type="directional" position="0 5 5" intensity="1.0"></a-light>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        const startBtn = document.querySelector('#start-button');
+        const overlay = document.querySelector('#ui-overlay');
+        const mStatus = document.getElementById('model-status');
+        const character = document.querySelector('#character');
+
+        character.addEventListener('model-error', () => { 
+            mStatus.innerText = "❌ 文件丢失"; mStatus.style.color = "red"; 
+        });
+        character.addEventListener('model-loaded', () => { 
+            mStatus.innerText = "✅ 加载完毕"; mStatus.style.color = "#0f0"; 
+        });
+
+        // 【最暴力的终极防线：不再调用任何引发崩溃的 .start() 方法】
+        // 引擎在网页打开时已经安全自动启动。点击按钮只做一件事：隐藏粉色封面！
+        startBtn.addEventListener('click', () => {
+            overlay.style.opacity = '0'; // 渐变消失
+            setTimeout(() => {
+                overlay.style.display = 'none'; // 彻底移出屏幕
+            }, 500);
+        });
+
+        const ball = document.querySelector('#basketball');
+        const hoop = document.querySelector('#hoop-set');
+        const bubble = document.querySelector('#bubble');
+        const aStatus = document.getElementById('anim-status');
+        const hintText = document.getElementById('hint-text');
+
+        let currentAnimFrame = null;
+        let playState = 0; 
+
+        document.querySelector('#target-anchor').addEventListener("targetFound", () => {
+            hintText.style.display = 'none';
+            character.setAttribute('visible', 'true');
+            ball.setAttribute('visible', 'true');
+            hoop.setAttribute('visible', 'true');
+            
+            bubble.style.display = 'none';
+            playState = 0; 
+            ball.removeAttribute('animation'); 
+
+            character.removeAttribute('animation-mixer');
+            setTimeout(() => {
+                character.setAttribute('animation-mixer', 'clip: *; loop: once; clampWhenFinished: true');
+                aStatus.innerText = "🔥 完美运行";
+                aStatus.style.color = "#0f0";
+            }, 50);
+
+            let startTime = Date.now();
+            const animateSequence = () => {
+                let elapsed = (Date.now() - startTime) / 1000;
+
+                if (elapsed >= 1.8 && playState === 0) {
+                    playState = 1;
+                    ball.setAttribute('animation', 'property: position; to: 0 3.0 -3.15; dur: 800; easing: easeOutQuad');
+                } 
+                else if (elapsed >= 2.6 && playState === 1) {
+                    playState = 2;
+                    ball.setAttribute('animation', 'property: position; to: 0 0.5 -3.15; dur: 1000; easing: easeInQuad');
+                }
+                else if (elapsed >= 4.5 && playState === 2) {
+                    playState = 3;
+                    ball.removeAttribute('animation'); 
+                    ball.setAttribute('position', {x: 0, y: 0, z: -1}); 
+                    bubble.style.display = 'block';
+                    return; 
+                }
+                currentAnimFrame = requestAnimationFrame(animateSequence);
+            };
+            if (currentAnimFrame) cancelAnimationFrame(currentAnimFrame);
+            animateSequence();
+        });
+
+        document.querySelector('#target-anchor').addEventListener("targetLost", () => {
+            bubble.style.display = 'none';
+            hintText.style.display = 'block';
+            if (currentAnimFrame) cancelAnimationFrame(currentAnimFrame);
+        });
+    </script>
+</body>
+</html>
