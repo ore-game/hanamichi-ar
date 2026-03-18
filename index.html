@@ -5,12 +5,17 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>樱木花道 GENIUS 10</title>
     
-    <script src="https://unpkg.zhimg.com/aframe@1.5.0/dist/aframe.min.js"></script>
-    <script src="https://unpkg.zhimg.com/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-    <script src="https://unpkg.zhimg.com/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://aframe.io" crossorigin>
+    
+    <link rel="preload" href="./final.glb" as="fetch" crossorigin="anonymous">
+    <link rel="preload" href="./targets.mind" as="fetch" crossorigin="anonymous">
+
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
     
     <script>
-        // 模型材质修复
         AFRAME.registerComponent('model-fixer', {
             init: function () {
                 this.el.addEventListener('model-loaded', () => {
@@ -55,17 +60,22 @@
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
         .quote-container { position: relative; color: white; max-width: 280px; margin: 50px 0; padding: 20px; }
-        .quote-container::before, .quote-container::after { content: ''; position: absolute; width: 30px; height: 30px; border: 2px solid rgba(255,255,255,0.4); }
+        .quote-container::before, .quote-container::after {
+            content: ''; position: absolute; width: 30px; height: 30px; border: 2px solid rgba(255,255,255,0.4);
+        }
         .quote-container::before { top: 0; left: 0; border-right: 0; border-bottom: 0; }
         .quote-container::after { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+
         .quote-text { font-size: 1.15rem; line-height: 1.8; font-weight: 500; display: block; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .quote-author { font-size: 0.9rem; margin-top: 15px; opacity: 0.8; display: block; text-align: right; letter-spacing: 1px; }
 
+        /* 按钮开局即就绪，绝不阻挡用户交互 */
         #start-btn {
             padding: 16px 60px; background: #FFFFFF; color: var(--sakuragi-red); border: none;
             border-radius: 50px; font-size: 1.1rem; font-weight: bold; cursor: pointer;
             box-shadow: 0 10px 25px rgba(230,0,18,0.2); animation: pulse 2s infinite; transition: all 0.2s;
         }
+
         #start-btn:active { transform: scale(0.95); }
         #start-btn.loading { animation: none; opacity: 0.8; pointer-events: none; }
 
@@ -74,6 +84,13 @@
             70% { box-shadow: 0 0 0 15px rgba(255, 255, 255, 0); }
             100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
         }
+
+        #error-msg {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: white; padding: 30px; border-radius: 20px; text-align: center;
+            z-index: 1000; display: none; width: 85%; max-width: 320px; box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+        #error-msg button { margin-top: 20px; padding: 10px 30px; background: var(--sakuragi-red); color: white; border: none; border-radius: 25px; font-weight: bold; }
 
         .scanning-target {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -86,9 +103,23 @@
             background-repeat: no-repeat; background-size: 40px 40px;
         }
 
-        #sakura-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; display: none; overflow: hidden; }
-        .sakura-petal { position: absolute; background: linear-gradient(135deg, #ffd1da 0%, #ffb6c1 100%); border-radius: 100% 0px 100% 0px; opacity: 0.8; box-shadow: 0 0 6px rgba(255, 182, 193, 0.4); animation: fall linear infinite; }
-        @keyframes fall { 0% { transform: translate3d(0, -50px, 0) rotate(0deg); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translate3d(var(--endX), 105vh, 0) rotate(var(--rot)); opacity: 0; } }
+        #sakura-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10; display: none; overflow: hidden;
+        }
+
+        .sakura-petal {
+            position: absolute; background: linear-gradient(135deg, #ffd1da 0%, #ffb6c1 100%);
+            border-radius: 100% 0px 100% 0px; opacity: 0.8; box-shadow: 0 0 6px rgba(255, 182, 193, 0.4);
+            animation: fall linear infinite;
+        }
+
+        @keyframes fall {
+            0% { transform: translate3d(0, -50px, 0) rotate(0deg); opacity: 0; }
+            10% { opacity: 0.8; }
+            90% { opacity: 0.8; }
+            100% { transform: translate3d(var(--endX), 105vh, 0) rotate(var(--rot)); opacity: 0; }
+        }
     </style>
 </head>
 <body>
@@ -103,6 +134,12 @@
         <p style="color: white; margin-top: 30px; font-size: 0.75rem; opacity: 0.6; letter-spacing: 1px;">POWERED BY MINDAR</p>
     </div>
 
+    <div id="error-msg">
+        <h3 style="color: var(--sakuragi-red); margin: 0 0 10px 0;">调用失败</h3>
+        <p id="error-text" style="font-size: 0.9rem; color: #666; line-height: 1.6;">请检查是否允许了摄像头权限。</p>
+        <button onclick="window.location.reload()">点此刷新重试</button>
+    </div>
+
     <div class="scanning-target" id="scan-hint"></div>
     <div id="sakura-container"></div>
 
@@ -110,27 +147,42 @@
         id="mainScene"
         mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no;" 
         color-space="sRGB" 
-        renderer="colorManagement: true, physicallyCorrectLights, antialias: false, precision: mediump" 
+        renderer="colorManagement: true, physicallyCorrectLights" 
         vr-mode-ui="enabled: false" 
         device-orientation-permission-ui="enabled: false">
         
+        <a-assets timeout="10000">
+            <a-asset-item id="characterModel" src="./final.glb"></a-asset-item>
+            <a-asset-item id="ballModel" src="./ball.glb"></a-asset-item>
+        </a-assets>
+
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0">
-            <a-entity id="sakuragi" model-fixer rotation="0 0 0" position="0 0 0" scale="0.5 0.5 0.5" animation-mixer="clip: *; loop: repeat;"></a-entity>
-            <a-entity id="basketball" position="0.35 1.0 0.15" scale="1.0 1.0 1.0" animation="property: rotation; to: 0 360 0; loop: true; dur: 3000; easing: linear"></a-entity>
+            <a-entity id="sakuragi" 
+                      gltf-model="#characterModel" 
+                      model-fixer
+                      rotation="0 0 0" position="0 0 0" scale="0.5 0.5 0.5" 
+                      animation-mixer="clip: *; loop: repeat;">
+                
+                <a-entity id="basketball" gltf-model="#ballModel" position="0.35 1.0 0.15" scale="1.0 1.0 1.0" 
+                          animation="property: rotation; to: 0 360 0; loop: true; dur: 3000; easing: linear">
+                </a-entity>
 
-            <a-entity position="1.1 2.3 0" animation__hover="property: position; to: 1.1 2.40 0; dir: alternate; dur: 2000; easing: easeInOutSine; loop: true" animation__breathe="property: scale; to: 1.04 1.04 1.04; dir: alternate; dur: 2200; easing: easeInOutSine; loop: true">
-                <a-entity geometry="primitive: circle; radius: 0.85; segments: 64" scale="1 0.45 1" material="color: #E60012; shader: flat; transparent: true; opacity: 0.75" position="0 0 -0.01"></a-entity>
-                <a-entity geometry="primitive: circle; radius: 0.8; segments: 64" scale="1 0.45 1" material="color: #ffffff; shader: flat; transparent: true; opacity: 0.95" position="0 0 0"></a-entity>
-                <a-text value="I'M A GENIUS !" color="#FFB6C1" align="center" width="4.8" font="https://cdn.aframe.io/fonts/Exo2Bold.fnt" position="0.02 -0.02 0.01"></a-text>
-                <a-text value="I'M A GENIUS !" color="#E60012" align="center" width="4.8" font="https://cdn.aframe.io/fonts/Exo2Bold.fnt" position="0 0 0.02"></a-text>
-                <a-entity geometry="primitive: triangle" material="color: #E60012; shader: flat; transparent: true; opacity: 0.75" position="-0.55 -0.32 -0.01" rotation="0 0 145" scale="0.32 0.32 1"></a-entity>
-                <a-entity geometry="primitive: triangle" material="color: #ffffff; shader: flat; transparent: true; opacity: 0.95" position="-0.5 -0.28 0.01" rotation="0 0 145" scale="0.25 0.25 1"></a-entity>
+                <a-entity position="1.1 2.3 0" 
+                          animation__hover="property: position; to: 1.1 2.40 0; dir: alternate; dur: 2000; easing: easeInOutSine; loop: true"
+                          animation__breathe="property: scale; to: 1.04 1.04 1.04; dir: alternate; dur: 2200; easing: easeInOutSine; loop: true">
+                    <a-entity geometry="primitive: circle; radius: 0.85; segments: 64" scale="1 0.45 1" material="color: #E60012; shader: flat; transparent: true; opacity: 0.75" position="0 0 -0.01"></a-entity>
+                    <a-entity geometry="primitive: circle; radius: 0.8; segments: 64" scale="1 0.45 1" material="color: #ffffff; shader: flat; transparent: true; opacity: 0.95" position="0 0 0"></a-entity>
+                    <a-text value="I'M A GENIUS !" color="#FFB6C1" align="center" width="4.8" font="https://cdn.aframe.io/fonts/Exo2Bold.fnt" position="0.02 -0.02 0.01"></a-text>
+                    <a-text value="I'M A GENIUS !" color="#E60012" align="center" width="4.8" font="https://cdn.aframe.io/fonts/Exo2Bold.fnt" position="0 0 0.02"></a-text>
+                    <a-entity geometry="primitive: triangle" material="color: #E60012; shader: flat; transparent: true; opacity: 0.75" position="-0.55 -0.32 -0.01" rotation="0 0 145" scale="0.32 0.32 1"></a-entity>
+                    <a-entity geometry="primitive: triangle" material="color: #ffffff; shader: flat; transparent: true; opacity: 0.95" position="-0.5 -0.28 0.01" rotation="0 0 145" scale="0.25 0.25 1"></a-entity>
+                </a-entity>
             </a-entity>
+            <a-light type="ambient" intensity="0.7"></a-light>
+            <a-light type="directional" position="1 2 2" intensity="1"></a-light>
         </a-entity>
-        <a-light type="ambient" intensity="0.7"></a-light>
-        <a-light type="directional" position="1 2 2" intensity="1"></a-light>
     </a-scene>
 
     <script>
@@ -139,84 +191,72 @@
         const sceneEl = document.querySelector('a-scene');
         const scanHint = document.querySelector('#scan-hint');
         const sakuraContainer = document.querySelector('#sakura-container');
+        const errorBox = document.querySelector('#error-msg');
 
-        // 终极黑科技：Blob 内存预直读
-        // 网页一打开，趁用户还在看封面，后台就不声不响地把模型转成内存级文件了
-        let sakuragiBlobUrl = null;
-        let ballBlobUrl = null;
-
-        Promise.all([
-            fetch('./final.glb').then(res => res.blob()),
-            fetch('./ball.glb').then(res => res.blob())
-        ]).then(([sakuragiBlob, ballBlob]) => {
-            // 将下载好的文件转化为浏览器的内部超高速链接
-            sakuragiBlobUrl = URL.createObjectURL(sakuragiBlob);
-            ballBlobUrl = URL.createObjectURL(ballBlob);
-        }).catch(err => console.warn("模型预加载受限，将在扫描时直读:", err));
-
-        // 屏蔽原生卡顿提示框
+        // 强力注入补丁，彻底防报错
         const patchUIInterval = setInterval(() => {
             const arSystem = sceneEl.systems["mindar-image-system"];
             if (arSystem && !arSystem.ui) {
-                arSystem.ui = { showLoading: () => {}, hideLoading: () => {}, showScanning: () => {}, hideScanning: () => {}, showCompatibility: () => {}, hideCompatibility: () => {} };
+                arSystem.ui = {
+                    showLoading: () => {}, hideLoading: () => {},
+                    showScanning: () => {}, hideScanning: () => {},
+                    showCompatibility: () => {}, hideCompatibility: () => {}
+                };
                 clearInterval(patchUIInterval);
             }
         }, 10);
 
-        // --- 点击即响应：绝不等待，直接要摄像头权限 ---
+        // 核心提速 4：0延迟点击指令，10毫秒高频强突系统底层唤醒摄像头
         startBtn.addEventListener('click', () => {
             startBtn.classList.add('loading');
-            startBtn.innerText = '正在调起摄像头...';
+            startBtn.innerText = '正在进入天才空间...';
             
-            // 此时 AR 引擎没有任何模型阻碍，启动速度会飙升
             const triggerAR = setInterval(() => {
                 const arSystem = sceneEl.systems["mindar-image-system"];
                 if (arSystem) {
                     clearInterval(triggerAR);
-                    arSystem.start(); 
+                    arSystem.start(); // 直接指令，立刻弹出摄像头授权，耗时通常 < 1秒
                 }
             }, 10);
         });
 
-        // --- 核心突破：镜头只要跑起来，立马揭开封面 ---
+        // 核心提速 5：只要摄像头画面一就绪，封面立刻无缝消失，完全展现满血状态
         sceneEl.addEventListener("arReady", () => {
-            // 这个事件触发意味着：你的 AR 引擎加载完了，且成功调出了摄像头识别功能！
             overlay.style.opacity = '0';
             setTimeout(() => { 
                 overlay.style.display = 'none'; 
                 scanHint.style.display = 'block'; 
-                
-                // 此时，神不知鬼不觉地把存在本地内存里的模型“贴”上去
-                // 因为是直读本地 Blob 内存，渲染解析的时间趋近于 0，绝不会卡死手机！
-                if(sakuragiBlobUrl) {
-                    document.querySelector('#sakuragi').setAttribute('gltf-model', `url(${sakuragiBlobUrl})`);
-                    document.querySelector('#basketball').setAttribute('gltf-model', `url(${ballBlobUrl})`);
-                } else {
-                    // 托底方案：就算刚刚网络太差没下完，直接给真实路径，让它在扫描时继续下
-                    document.querySelector('#sakuragi').setAttribute('gltf-model', 'url(./final.glb)');
-                    document.querySelector('#basketball').setAttribute('gltf-model', 'url(./ball.glb)');
-                }
             }, 200);
         });
 
-        // 樱花与扫描状态联动
+        sceneEl.addEventListener("arError", (event) => {
+            errorBox.style.display = 'block';
+            startBtn.innerText = "唤醒失败";
+            startBtn.classList.remove('loading');
+        });
+
+        // 樱花与扫描逻辑
         let sakuraInterval;
         let isTargetFound = false;
+
         function createSakuraPetal() {
             if (!isTargetFound) return;
             const petal = document.createElement('div');
             petal.classList.add('sakura-petal');
+            
             const startX = Math.random() * 100;
             const size = Math.random() * 8 + 8;
             const duration = Math.random() * 3 + 4;
             const endX = (Math.random() * 40 - 20);
             const rot = (Math.random() * 720);
+
             petal.style.left = startX + 'vw';
             petal.style.width = size + 'px';
             petal.style.height = size + 'px';
             petal.style.animationDuration = duration + 's';
             petal.style.setProperty('--endX', endX + 'vw');
             petal.style.setProperty('--rot', rot + 'deg');
+
             sakuraContainer.appendChild(petal);
             setTimeout(() => { if (petal.parentNode) petal.remove(); }, duration * 1000);
         }
