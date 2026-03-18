@@ -42,7 +42,15 @@
 
         body { margin: 0; overflow: hidden; font-family: -apple-system, sans-serif; background: #000; }
         
-        video { object-fit: cover !important; }
+        /* 针对手机浏览器的视频修正：防止画面拉伸导致的识别失败 */
+        video { 
+            object-fit: cover !important; 
+            width: 100vw !important; 
+            height: 100vh !important; 
+            position: absolute; 
+            top: 0; 
+            left: 0;
+        }
 
         /* 封面遮罩层 */
         #loading-overlay {
@@ -78,11 +86,17 @@
 
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        /* 引导扫描框 */
+        /* 强力扫描引导框：黑色蒙层帮助对焦 */
         #scan-hint {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 280px; height: 280px; border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 20px; pointer-events: none; display: none; z-index: 5;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: none; z-index: 5;
+            background: radial-gradient(circle, transparent 150px, rgba(0,0,0,0.5) 155px);
+        }
+        
+        .scan-frame {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 300px; height: 300px; border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 24px;
             background: linear-gradient(to right, white 20px, transparent 20px) 0 0,
                         linear-gradient(to right, white 20px, transparent 20px) 0 100%,
                         linear-gradient(to left, white 20px, transparent 20px) 100% 0,
@@ -93,8 +107,15 @@
                         linear-gradient(to top, white 20px, transparent 20px) 100% 100%;
             background-repeat: no-repeat; background-size: 40px 40px;
         }
+        
+        .scan-line {
+            position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+            background: rgba(255, 255, 255, 0.8); box-shadow: 0 0 15px white;
+            animation: scanAnim 3s linear infinite;
+        }
+        @keyframes scanAnim { 0% { top: 0%; } 100% { top: 100%; } }
 
-        /* 樱花容器：层级提升至最高 */
+        /* 樱花容器 */
         #sakura-container {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 9999; display: none; overflow: hidden;
@@ -126,13 +147,18 @@
         <p style="color: white; margin-top: 30px; font-size: 0.75rem; opacity: 0.6;">POWERED BY MINDAR</p>
     </div>
 
-    <div id="scan-hint"></div>
+    <div id="scan-hint">
+        <div class="scan-frame">
+            <div class="scan-line"></div>
+        </div>
+    </div>
     <div id="sakura-container"></div>
 
+    <!-- 关键参数优化：针对手机端大幅降低特征点匹配过滤阈值 -->
     <a-scene 
         id="mainScene"
         loading-screen="enabled: false"
-        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no; warmupTolerance: 5; missTolerance: 30;" 
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no; warmupTolerance: 3; missTolerance: 60; filterMinCF: 0.0001; filterBeta: 0.001;" 
         color-space="sRGB" 
         renderer="colorManagement: true, physicallyCorrectLights" 
         vr-mode-ui="enabled: false" 
@@ -166,15 +192,17 @@
         const scanHint = document.querySelector('#scan-hint');
         const sakuraContainer = document.querySelector('#sakura-container');
 
-        // --- 核心监测：只要引擎对象在，立马变白 ---
         const checkReady = setInterval(() => {
-            if (sceneEl.systems["mindar-image-system"]) {
+            const arSystem = sceneEl.systems["mindar-image-system"];
+            if (arSystem) {
+                if (!arSystem.ui) {
+                    arSystem.ui = { showLoading:()=>{}, hideLoading:()=>{}, showScanning:()=>{}, hideScanning:()=>{} };
+                }
                 clearInterval(checkReady);
                 startBtn.classList.add('ready');
             }
         }, 100);
 
-        // --- 樱花生成逻辑 ---
         let sakuraInterval = null;
         function createSakuraPetal() {
             const petal = document.createElement('div');
@@ -189,23 +217,15 @@
             setTimeout(() => petal.remove(), 7000);
         }
 
-        // --- 启动逻辑：攻克硬件调用与报错 ---
         startBtn.addEventListener('click', () => {
             const arSystem = sceneEl.systems["mindar-image-system"];
             if (!arSystem) return;
 
-            // 【核心补丁】攻克 showLoading 报错
-            if (!arSystem.ui) {
-                arSystem.ui = { showLoading:()=>{}, hideLoading:()=>{}, showScanning:()=>{}, hideScanning:()=>{} };
-            }
-
             try {
-                // 启动前强制触发视频流播放
                 arSystem.start();
-                startBtn.innerText = "开启中...";
+                startBtn.innerText = "时空开启中...";
                 startBtn.style.pointerEvents = "none";
 
-                // 监听 AR 真正就绪
                 const onReady = () => {
                     overlay.style.opacity = '0';
                     setTimeout(() => { 
@@ -216,17 +236,13 @@
 
                 sceneEl.addEventListener("arReady", onReady);
                 sceneEl.addEventListener("videoScanning", onReady);
-                
-                // 保底 4 秒拉帘
                 setTimeout(() => { if(overlay.style.display !== 'none') onReady(); }, 4000);
 
             } catch (err) {
-                console.error(err);
                 window.location.reload();
             }
         });
 
-        // --- 识别联动 ---
         sceneEl.addEventListener("targetFound", () => {
             scanHint.style.display = 'none';
             sakuraContainer.style.display = 'block';
