@@ -8,25 +8,26 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
     <script>
-        // 模型材质修复组件：解决眉毛和眼睛的显示层级问题
         AFRAME.registerComponent('model-fixer', {
             init: function () {
                 this.el.addEventListener('model-loaded', () => {
                     const mesh = this.el.getObject3D('mesh');
-                    mesh.traverse((node) => {
-                        if (node.isMesh) {
-                            node.material.side = THREE.DoubleSide;
-                            const isFaceDetail = /eye|brow/i.test(node.name) || node.material.transparent;
-                            if (isFaceDetail) {
-                                node.material.transparent = true;
-                                node.material.alphaTest = 0.05; 
-                                node.material.depthWrite = true; 
-                                node.material.depthTest = true;
-                                node.renderOrder = 10; 
-                                node.material.needsUpdate = true;
+                    if(mesh) {
+                        mesh.traverse((node) => {
+                            if (node.isMesh) {
+                                node.material.side = THREE.DoubleSide;
+                                const isFaceDetail = /eye|brow/i.test(node.name) || node.material.transparent;
+                                if (isFaceDetail) {
+                                    node.material.transparent = true;
+                                    node.material.alphaTest = 0.05; 
+                                    node.material.depthWrite = true; 
+                                    node.material.depthTest = true;
+                                    node.renderOrder = 10; 
+                                    node.material.needsUpdate = true;
+                                }
                             }
-                        }
-                    });
+                        });
+                    }
                 });
             }
         });
@@ -38,88 +39,45 @@
             --dark-pink: #FF9AAB;
         }
 
-        body { margin: 0; overflow: hidden; font-family: 'Helvetica Neue', Helvetica, Arial, "Microsoft YaHei", sans-serif; background: #000; }
+        body { margin: 0; overflow: hidden; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #000; }
         
-        /* 封面遮罩层 */
         #loading-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, var(--soft-pink) 0%, var(--dark-pink) 100%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 999;
-            transition: opacity 0.5s ease-out;
-            padding: 40px 20px;
-            box-sizing: border-box;
-            text-align: center;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 999; transition: opacity 0.3s ease-out; padding: 40px 20px; box-sizing: border-box; text-align: center;
         }
         
         #loading-overlay h1 {
-            color: white;
-            text-shadow: 0 4px 10px rgba(0,0,0,0.15);
-            margin: 0;
-            font-size: 3.5rem;
-            letter-spacing: -2px;
-            font-weight: 900;
-            font-style: italic;
+            color: white; text-shadow: 0 4px 10px rgba(0,0,0,0.15); margin: 0;
+            font-size: 3.5rem; letter-spacing: -2px; font-weight: 900; font-style: italic;
             animation: float 3s ease-in-out infinite;
         }
 
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
         .quote-container {
-            position: relative;
-            color: white;
-            max-width: 280px;
-            margin: 50px 0;
-            padding: 20px;
+            position: relative; color: white; max-width: 280px; margin: 50px 0; padding: 20px;
         }
 
         .quote-container::before, .quote-container::after {
-            content: '';
-            position: absolute;
-            width: 30px; height: 30px;
-            border: 2px solid rgba(255,255,255,0.4);
+            content: ''; position: absolute; width: 30px; height: 30px; border: 2px solid rgba(255,255,255,0.4);
         }
         .quote-container::before { top: 0; left: 0; border-right: 0; border-bottom: 0; }
         .quote-container::after { bottom: 0; right: 0; border-left: 0; border-top: 0; }
 
-        .quote-text {
-            font-size: 1.15rem; line-height: 1.8; font-weight: 500; display: block;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
+        .quote-text { font-size: 1.15rem; line-height: 1.8; font-weight: 500; display: block; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .quote-author { font-size: 0.9rem; margin-top: 15px; opacity: 0.8; display: block; text-align: right; letter-spacing: 1px; }
 
-        /* 初始准备状态按钮 */
         #start-btn {
-            padding: 16px 60px;
-            background: rgba(255, 255, 255, 0.4); 
-            color: rgba(255, 255, 255, 0.8); 
-            border: none;
-            border-radius: 50px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            cursor: default;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            pointer-events: none;
+            padding: 16px 60px; background: #FFFFFF; color: var(--sakuragi-red); border: none;
+            border-radius: 50px; font-size: 1.1rem; font-weight: bold; cursor: pointer;
+            box-shadow: 0 10px 25px rgba(230,0,18,0.2); animation: pulse 2s infinite;
+            transition: all 0.2s;
         }
 
-        /* 极速就绪后的按钮状态 */
-        #start-btn.ready {
-            background: #FFFFFF;
-            color: var(--sakuragi-red);
-            cursor: pointer;
-            box-shadow: 0 10px 25px rgba(230,0,18,0.2);
-            animation: pulse 2s infinite;
-            pointer-events: auto;
-        }
+        #start-btn:active { transform: scale(0.95); }
+        #start-btn.loading { animation: none; opacity: 0.8; pointer-events: none; }
 
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
@@ -127,65 +85,33 @@
             100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
         }
 
-        /* 错误提示 */
         #error-msg {
-            position: fixed;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 30px;
-            border-radius: 20px;
-            text-align: center;
-            z-index: 1000;
-            display: none;
-            width: 85%;
-            max-width: 320px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: white; padding: 30px; border-radius: 20px; text-align: center;
+            z-index: 1000; display: none; width: 85%; max-width: 320px; box-shadow: 0 20px 50px rgba(0,0,0,0.3);
         }
 
-        #error-msg button {
-            margin-top: 20px;
-            padding: 10px 30px;
-            background: var(--sakuragi-red);
-            color: white;
-            border: none;
-            border-radius: 25px;
-            font-weight: bold;
-        }
+        #error-msg button { margin-top: 20px; padding: 10px 30px; background: var(--sakuragi-red); color: white; border: none; border-radius: 25px; font-weight: bold; }
 
         .scanning-target {
-            position: fixed;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 260px; height: 260px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 20px;
-            pointer-events: none;
-            display: none;
-            background: linear-gradient(to right, white 20px, transparent 20px) 0 0,
-                        linear-gradient(to right, white 20px, transparent 20px) 0 100%,
-                        linear-gradient(to left, white 20px, transparent 20px) 100% 0,
-                        linear-gradient(to left, white 20px, transparent 20px) 100% 100%,
-                        linear-gradient(to bottom, white 20px, transparent 20px) 0 0,
-                        linear-gradient(to bottom, white 20px, transparent 20px) 100% 0,
-                        linear-gradient(to top, white 20px, transparent 20px) 0 100%,
-                        linear-gradient(to top, white 20px, transparent 20px) 100% 100%;
-            background-repeat: no-repeat;
-            background-size: 40px 40px;
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 260px; height: 260px; border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 20px;
+            pointer-events: none; display: none;
+            background: linear-gradient(to right, white 20px, transparent 20px) 0 0, linear-gradient(to right, white 20px, transparent 20px) 0 100%,
+                        linear-gradient(to left, white 20px, transparent 20px) 100% 0, linear-gradient(to left, white 20px, transparent 20px) 100% 100%,
+                        linear-gradient(to bottom, white 20px, transparent 20px) 0 0, linear-gradient(to bottom, white 20px, transparent 20px) 100% 0,
+                        linear-gradient(to top, white 20px, transparent 20px) 0 100%, linear-gradient(to top, white 20px, transparent 20px) 100% 100%;
+            background-repeat: no-repeat; background-size: 40px 40px;
         }
 
-        /* 樱花下落特效样式 */
         #sakura-container {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 10; display: none; overflow: hidden;
         }
 
         .sakura-petal {
-            position: absolute; 
-            background: linear-gradient(135deg, #ffd1da 0%, #ffb6c1 100%);
-            border-radius: 100% 0px 100% 0px; 
-            opacity: 0.8;
-            box-shadow: 0 0 6px rgba(255, 182, 193, 0.4);
+            position: absolute; background: linear-gradient(135deg, #ffd1da 0%, #ffb6c1 100%);
+            border-radius: 100% 0px 100% 0px; opacity: 0.8; box-shadow: 0 0 6px rgba(255, 182, 193, 0.4);
             animation: fall linear infinite;
         }
 
@@ -205,13 +131,13 @@
             <span class="quote-text">“老头子，你最光辉的时刻是在什么时候？而我，就是现在了！”</span>
             <span class="quote-author">—— 樱木花道</span>
         </div>
-        <button id="start-btn">正在准备天才...</button>
+        <button id="start-btn">点击唤醒天才</button>
         <p style="color: white; margin-top: 30px; font-size: 0.75rem; opacity: 0.6; letter-spacing: 1px;">POWERED BY MINDAR</p>
     </div>
 
     <div id="error-msg">
-        <h3 style="color: var(--sakuragi-red); margin: 0 0 10px 0;">系统启动异常</h3>
-        <p id="error-text" style="font-size: 0.9rem; color: #666; line-height: 1.6;">原因：环境不支持或权限拦截。</p>
+        <h3 style="color: var(--sakuragi-red); margin: 0 0 10px 0;">调用失败</h3>
+        <p id="error-text" style="font-size: 0.9rem; color: #666; line-height: 1.6;">请检查是否允许了摄像头权限。</p>
         <button onclick="window.location.reload()">点此刷新重试</button>
     </div>
 
@@ -226,7 +152,7 @@
         vr-mode-ui="enabled: false" 
         device-orientation-permission-ui="enabled: false">
         
-        <a-assets>
+        <a-assets timeout="10">
             <a-asset-item id="characterModel" src="./final.glb"></a-asset-item>
             <a-asset-item id="ballModel" src="./ball.glb"></a-asset-item>
         </a-assets>
@@ -237,15 +163,10 @@
             <a-entity id="sakuragi" 
                       gltf-model="#characterModel" 
                       model-fixer
-                      rotation="0 0 0" 
-                      position="0 0 0" 
-                      scale="0.5 0.5 0.5" 
+                      rotation="0 0 0" position="0 0 0" scale="0.5 0.5 0.5" 
                       animation-mixer="clip: *; loop: repeat;">
                 
-                <a-entity id="basketball" 
-                          gltf-model="#ballModel" 
-                          position="0.35 1.0 0.15" 
-                          scale="1.0 1.0 1.0" 
+                <a-entity id="basketball" gltf-model="#ballModel" position="0.35 1.0 0.15" scale="1.0 1.0 1.0" 
                           animation="property: rotation; to: 0 360 0; loop: true; dur: 3000; easing: linear">
                 </a-entity>
 
@@ -274,50 +195,55 @@
         const errorBox = document.querySelector('#error-msg');
         const errorText = document.querySelector('#error-text');
 
-        let isSystemReady = false;
-
-        // --- 核心改动 1：极速 UI 补丁注入 ---
-        // 50ms 高频监测，一抓到 arSystem 马上强行注入空方法，彻底防 showLoading 报错
+        // 强力注入补丁，彻底干掉初始化阶段可能引发卡顿的报错
         const patchUIInterval = setInterval(() => {
             const arSystem = sceneEl.systems["mindar-image-system"];
-            if (arSystem) {
-                if (!arSystem.ui) {
-                    arSystem.ui = {
-                        showLoading: () => {}, hideLoading: () => {},
-                        showScanning: () => {}, hideScanning: () => {},
-                        showCompatibility: () => {}, hideCompatibility: () => {}
-                    };
-                } else {
-                    arSystem.ui.showLoading = arSystem.ui.showLoading || (() => {});
-                    arSystem.ui.hideLoading = arSystem.ui.hideLoading || (() => {});
-                }
+            if (arSystem && !arSystem.ui) {
+                arSystem.ui = {
+                    showLoading: () => {}, hideLoading: () => {},
+                    showScanning: () => {}, hideScanning: () => {},
+                    showCompatibility: () => {}, hideCompatibility: () => {}
+                };
                 clearInterval(patchUIInterval);
             }
-        }, 50);
+        }, 10);
 
-        // --- 核心改动 2：取消死等，100ms 极速点亮按钮 ---
-        setTimeout(() => {
-            isSystemReady = true;
-            startBtn.innerText = "唤醒天才樱木花道";
-            startBtn.classList.add('ready');
-        }, 100);
-
-        // --- 核心改动 4：无缝视觉切换 ---
-        // 监听 AR 摄像头真正准备就绪的事件，而不是点击后立刻隐藏遮罩
+        // 监听 AR 核心引擎准备完毕（只需 1~2 秒调用摄像头和编译基础特征）
         sceneEl.addEventListener("arReady", () => {
             overlay.style.opacity = '0';
             setTimeout(() => { 
                 overlay.style.display = 'none'; 
-                scanHint.style.display = 'block'; // 画面出来后再显示扫描框
-            }, 500);
+                scanHint.style.display = 'block'; 
+            }, 300);
         });
 
         sceneEl.addEventListener("arError", (event) => {
             errorBox.style.display = 'block';
-            errorText.innerText = "摄像头调用失败，建议检查权限或换用系统自带浏览器。";
+            startBtn.innerText = "唤醒失败";
+            startBtn.classList.remove('loading');
         });
 
-        // --- 樱花特效逻辑 ---
+        // 交互逻辑：点击瞬间点火启动！
+        startBtn.addEventListener('click', () => {
+            startBtn.classList.add('loading');
+            startBtn.innerText = '正在接通高维空间...';
+            
+            try {
+                // 每 50ms 检测系统是否挂载，挂载后立刻强行启动
+                const checkAndStart = setInterval(() => {
+                    const arSystem = sceneEl.systems["mindar-image-system"];
+                    if (arSystem) {
+                        clearInterval(checkAndStart);
+                        arSystem.start(); // 瞬间调用摄像头，因为 timeout=10，不会被模型卡住
+                    }
+                }, 50);
+            } catch (err) {
+                errorBox.style.display = 'block';
+                errorText.innerText = "异常：" + err.message;
+            }
+        });
+
+        // 樱花与扫描逻辑保持不变
         let sakuraInterval;
         let isTargetFound = false;
 
@@ -340,48 +266,18 @@
             petal.style.setProperty('--rot', rot + 'deg');
 
             sakuraContainer.appendChild(petal);
-            
-            setTimeout(() => {
-                if (petal.parentNode) petal.remove();
-            }, duration * 1000);
+            setTimeout(() => { if (petal.parentNode) petal.remove(); }, duration * 1000);
         }
 
-        // --- 唤醒交互 ---
-        startBtn.addEventListener('click', () => {
-            if (!isSystemReady) return;
-            
-            startBtn.style.pointerEvents = 'none';
-            startBtn.innerText = '正在载入天才空间...';
-
-            try {
-                const arSystem = sceneEl.systems["mindar-image-system"];
-                if (arSystem) {
-                    arSystem.start(); 
-                    // 这里去掉了原本的隐藏 overlay 代码，交给 arReady 事件去优雅处理
-                } else {
-                    throw new Error("系统尚未挂载，请重试");
-                }
-            } catch (err) {
-                errorBox.style.display = 'block';
-                errorText.innerText = "异常：" + err.message;
-            }
-        });
-
-        // --- 核心改动 3：死死绑定识别状态的樱花生成 ---
         sceneEl.addEventListener("targetFound", () => {
             scanHint.style.display = 'none';
             isTargetFound = true;
             sakuraContainer.style.display = 'block';
-            if (!sakuraInterval) {
-                sakuraInterval = setInterval(createSakuraPetal, 250);
-            }
+            if (!sakuraInterval) { sakuraInterval = setInterval(createSakuraPetal, 250); }
         });
 
         sceneEl.addEventListener("targetLost", () => {
-            // 如果画面还在加载中，不强制显示扫描框
-            if(overlay.style.display === 'none') {
-                scanHint.style.display = 'block';
-            }
+            if(overlay.style.display === 'none') scanHint.style.display = 'block';
             isTargetFound = false;
             sakuraContainer.style.display = 'none';
             sakuraContainer.innerHTML = ''; 
