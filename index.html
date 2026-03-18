@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
     <script>
-        // 模型材质修复组件：解决眉毛和眼睛显示层级问题
+        // 模型材质修复组件：解决细节显示问题
         AFRAME.registerComponent('model-fixer', {
             init: function () {
                 this.el.addEventListener('model-loaded', () => {
@@ -47,7 +47,7 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, var(--soft-pink) 0%, var(--dark-pink) 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 999; transition: opacity 0.5s ease-out;
+            z-index: 999; transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
             padding: 40px 20px; box-sizing: border-box; text-align: center;
         }
         
@@ -63,35 +63,29 @@
         }
 
         .quote-container {
-            position: relative; color: white; max-width: 280px; margin: 50px 0; padding: 20px;
+            position: relative; color: white; max-width: 280px; margin: 40px 0; padding: 20px;
         }
 
         .quote-container::before, .quote-container::after {
-            content: ''; position: absolute; width: 30px; height: 30px;
+            content: ''; position: absolute; width: 25px; height: 25px;
             border: 2px solid rgba(255,255,255,0.4);
         }
         .quote-container::before { top: 0; left: 0; border-right: 0; border-bottom: 0; }
         .quote-container::after { bottom: 0; right: 0; border-left: 0; border-top: 0; }
 
-        .quote-text {
-            font-size: 1.15rem; line-height: 1.8; font-weight: 500; display: block;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
+        .quote-text { font-size: 1.1rem; line-height: 1.8; font-weight: 500; display: block; }
 
-        /* 初始状态按钮 */
+        /* 唤醒按钮：极速激活样式 */
         #start-btn {
-            padding: 16px 60px; background: rgba(255, 255, 255, 0.4); 
-            color: rgba(255, 255, 255, 0.8); border: none; border-radius: 50px;
-            font-size: 1.1rem; font-weight: bold; cursor: default;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: all 0.3s ease;
-            pointer-events: none;
+            padding: 16px 60px; background: #FFFFFF; color: var(--sakuragi-red);
+            border: none; border-radius: 50px; font-size: 1.1rem; font-weight: bold;
+            box-shadow: 0 10px 25px rgba(230,0,18,0.2); cursor: pointer;
+            transition: all 0.3s ease; animation: pulse 2s infinite;
+            opacity: 0.6; pointer-events: none; /* 初始短暂锁定 */
         }
 
-        /* 准备就绪后的按钮 */
         #start-btn.ready {
-            background: #FFFFFF; color: var(--sakuragi-red); cursor: pointer;
-            box-shadow: 0 10px 25px rgba(230,0,18,0.2); animation: pulse 2s infinite;
-            pointer-events: auto;
+            opacity: 1; pointer-events: auto;
         }
 
         @keyframes pulse {
@@ -115,7 +109,6 @@
             background-repeat: no-repeat; background-size: 40px 40px;
         }
 
-        /* 补全樱花下落特效样式 */
         #sakura-container {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 10; display: none; overflow: hidden;
@@ -131,7 +124,6 @@
 
         @keyframes fall {
             0% { transform: translate3d(0, -50px, 0) rotate(0deg); opacity: 0; }
-            10% { opacity: 0.8; }
             100% { transform: translate3d(var(--endX), 105vh, 0) rotate(var(--rot)); opacity: 0; }
         }
     </style>
@@ -150,8 +142,10 @@
     <div class="scanning-target" id="scan-hint"></div>
     <div id="sakura-container"></div>
 
+    <!-- loading-screen="enabled: false" 彻底禁用丑陋的蓝色加载页 -->
     <a-scene 
         id="mainScene"
+        loading-screen="enabled: false"
         mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no;" 
         color-space="sRGB" 
         renderer="colorManagement: true, physicallyCorrectLights" 
@@ -166,14 +160,9 @@
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0">
-            <a-entity id="sakuragi" 
-                      gltf-model="#characterModel" 
-                      model-fixer
-                      rotation="0 0 0" position="0 0 0" scale="0.5 0.5 0.5" 
-                      animation-mixer="clip: *; loop: repeat;">
-                
+            <a-entity id="sakuragi" gltf-model="#characterModel" model-fixer rotation="0 0 0" position="0 0 0" scale="0.5 0.5 0.5" animation-mixer>
                 <a-entity gltf-model="#ballModel" position="0.35 1.0 0.15" animation="property: rotation; to: 0 360 0; loop: true; dur: 3000; easing: linear"></a-entity>
-
+                <!-- 对话气泡 -->
                 <a-entity position="1.1 2.3 0" animation="property: position; to: 1.1 2.40 0; dir: alternate; dur: 2000; loop: true">
                     <a-entity geometry="primitive: circle; radius: 0.85" material="color: #E60012; shader: flat; opacity: 0.75" position="0 0 -0.01" scale="1 0.45 1"></a-entity>
                     <a-entity geometry="primitive: circle; radius: 0.8" material="color: #ffffff; shader: flat" scale="1 0.45 1"></a-entity>
@@ -192,18 +181,25 @@
         const scanHint = document.querySelector('#scan-hint');
         const sakuraContainer = document.querySelector('#sakura-container');
 
+        // --- 核心加固：极速挂载与补丁 ---
         let isSystemReady = false;
-
-        // 极速探测：高频轮询，只要引擎核心一加载就变白
-        const checkReady = setInterval(() => {
+        
+        const patchSystem = setInterval(() => {
             const arSystem = sceneEl.systems["mindar-image-system"];
-            if (arSystem && arSystem.el) {
-                clearInterval(checkReady);
+            if (arSystem) {
+                // 如果 UI 模块还没挂载，我们直接手动注入虚拟方法，彻底攻克 showLoading 报错
+                if (!arSystem.ui) {
+                    arSystem.ui = {
+                        showLoading: () => {}, hideLoading: () => {},
+                        showScanning: () => {}, hideScanning: () => {}
+                    };
+                }
+                clearInterval(patchSystem);
                 isSystemReady = true;
                 startBtn.innerText = "唤醒天才樱木花道";
                 startBtn.classList.add('ready');
             }
-        }, 100);
+        }, 50); // 每 50ms 巡检一次，确保秒挂载
 
         // --- 樱花特效逻辑 ---
         let sakuraInterval = null;
@@ -226,26 +222,35 @@
             if (!isSystemReady) return;
             const arSystem = sceneEl.systems["mindar-image-system"];
 
-            // 【核心补丁】攻克 showLoading 报错
-            // 如果内部 UI 对象还没生成，我们手动给它一个“空壳”防止报错崩溃
-            if (arSystem && !arSystem.ui) {
-                arSystem.ui = {
-                    showLoading: () => {}, hideLoading: () => {},
-                    showScanning: () => {}, hideScanning: () => {}
-                };
-            }
-
             try {
                 arSystem.start();
-                overlay.style.opacity = '0';
-                setTimeout(() => { overlay.style.display = 'none'; scanHint.style.display = 'block'; }, 500);
+                startBtn.innerText = "正在开启时空...";
+                startBtn.style.pointerEvents = 'none';
+
+                // 只有当检测到摄像头画面真正显示后，才淡出封面，实现无缝切换
+                const reveal = () => {
+                    overlay.style.opacity = '0';
+                    setTimeout(() => { 
+                        overlay.style.display = 'none'; 
+                        scanHint.style.display = 'block'; 
+                    }, 500);
+                    sceneEl.removeEventListener("arReady", reveal);
+                    sceneEl.removeEventListener("videoScanning", reveal);
+                };
+
+                sceneEl.addEventListener("arReady", reveal);
+                sceneEl.addEventListener("videoScanning", reveal);
+
+                // 3秒强制保底拉帘，防止事件未触发
+                setTimeout(() => { if(overlay.style.display !== 'none') reveal(); }, 3000);
+
             } catch (err) {
-                console.warn("启动微调:", err);
+                console.warn("启动补丁已处理:", err);
                 window.location.reload(); 
             }
         });
 
-        // --- 扫描状态联动 ---
+        // --- 识别联动 ---
         sceneEl.addEventListener("targetFound", () => {
             scanHint.style.display = 'none';
             sakuraContainer.style.display = 'block';
