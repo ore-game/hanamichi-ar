@@ -52,7 +52,7 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, var(--soft-pink) 0%, var(--dark-pink) 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 999; transition: opacity 0.4s ease-out;
+            z-index: 999; transition: opacity 0.3s ease-out; /* 缩短消失动画时间，更显干脆 */
             padding: 40px 20px; box-sizing: border-box; text-align: center;
         }
         
@@ -84,18 +84,29 @@
 
         .quote-author { font-size: 0.9rem; margin-top: 15px; opacity: 0.8; display: block; text-align: right; letter-spacing: 1px; }
 
+        /* 🌟 未就绪时的暗淡按钮状态 */
         #start-btn {
-            padding: 16px 60px; background: #FFFFFF; color: var(--sakuragi-red);
+            padding: 16px 60px; 
+            background: rgba(255, 255, 255, 0.5); 
+            color: rgba(230, 0, 18, 0.6);
             border: none; border-radius: 50px; font-size: 1.1rem; font-weight: bold;
-            cursor: pointer; box-shadow: 0 10px 25px rgba(230,0,18,0.2);
-            animation: pulse 2s infinite; transition: all 0.2s ease; pointer-events: auto; 
+            cursor: default; transition: all 0.3s ease; 
+            pointer-events: none; /* 没准备好之前禁止点击 */
         }
         
-        #start-btn:active { transform: scale(0.95); }
+        /* 🌟 系统底层挂载完毕后的激活状态 */
+        #start-btn.ready {
+            background: #FFFFFF; color: var(--sakuragi-red);
+            cursor: pointer; pointer-events: auto;
+            box-shadow: 0 10px 25px rgba(230,0,18,0.3);
+            animation: pulse 2s infinite; 
+        }
+
+        #start-btn.ready:active { transform: scale(0.92); }
 
         @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
-            70% { box-shadow: 0 0 0 15px rgba(255, 255, 255, 0); }
+            0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.8); }
+            70% { box-shadow: 0 0 0 20px rgba(255, 255, 255, 0); }
             100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
         }
 
@@ -157,7 +168,7 @@
             <span class="quote-text">“老头子，你最光辉的时刻是在什么时候？而我，就是现在了！”</span>
             <span class="quote-author">—— 樱木花道</span>
         </div>
-        <button id="start-btn">唤醒天才樱木花道</button>
+        <button id="start-btn">正在唤醒时空通道...</button>
         <p style="color: white; margin-top: 30px; font-size: 0.75rem; opacity: 0.6; letter-spacing: 1px;">POWERED BY MINDAR</p>
     </div>
 
@@ -226,84 +237,21 @@
         const errorBox = document.querySelector('#error-msg');
         const errorText = document.querySelector('#error-text');
 
-        sceneEl.addEventListener("arError", (event) => {
-            errorBox.style.display = 'block';
-            errorText.innerText = "摄像头调用失败，建议换用系统自带浏览器或刷新页面并允许摄像头权限。";
-        });
-
-        let sakuraInterval;
-        let isTargetFound = false;
-
-        function createSakuraPetal() {
-            if (!isTargetFound) return;
-            const petal = document.createElement('div');
-            petal.classList.add('sakura-petal');
-            
-            const startX = Math.random() * 100;
-            const size = Math.random() * 8 + 8;
-            const duration = Math.random() * 3 + 4;
-            const endX = (Math.random() * 40 - 20); 
-            const rot = (Math.random() * 720);
-
-            petal.style.left = startX + 'vw';
-            petal.style.width = size + 'px';
-            petal.style.height = size + 'px';
-            petal.style.animationDuration = duration + 's';
-            petal.style.setProperty('--endX', endX + 'vw');
-            petal.style.setProperty('--rot', rot + 'deg');
-
-            sakuraContainer.appendChild(petal);
-            
-            setTimeout(() => {
-                if (petal.parentNode) petal.remove();
-            }, duration * 1000);
-        }
-
-        startBtn.addEventListener('click', () => {
-            startBtn.style.pointerEvents = 'none';
-            startBtn.innerText = '正在启动摄像头...';
-            startBtn.style.animation = 'none';
-            startBtn.style.opacity = '0.7';
-
-            const fastStart = setInterval(() => {
-                const arSystem = sceneEl.systems["mindar-image-system"];
-                if (arSystem) {
-                    clearInterval(fastStart);
-                    try {
-                        arSystem.start(); 
-                    } catch (err) {
-                        errorBox.style.display = 'block';
-                        errorText.innerText = "异常：" + err.message;
-                    }
+        // 🌟 核心杀手锏：网页一加载，立刻在幕后强行启动 AR 系统！
+        // 用户一进网页就会弹出“请求使用摄像头”的系统提示
+        sceneEl.addEventListener('loaded', () => {
+            const arSystem = sceneEl.systems["mindar-image-system"];
+            if (arSystem) {
+                try {
+                    arSystem.start(); 
+                } catch (err) {
+                    errorBox.style.display = 'block';
+                    errorText.innerText = "异常：" + err.message;
                 }
-            }, 50); 
-        });
-
-        sceneEl.addEventListener("arReady", () => {
-            scanHint.style.display = 'block';
-            overlay.style.opacity = '0';
-            setTimeout(() => { 
-                overlay.style.display = 'none'; 
-            }, 400);
-        });
-
-        sceneEl.addEventListener("targetFound", () => {
-            scanHint.style.display = 'none';
-            isTargetFound = true;
-            sakuraContainer.style.display = 'block';
-            if (!sakuraInterval) {
-                sakuraInterval = setInterval(createSakuraPetal, 250);
             }
         });
 
-        sceneEl.addEventListener("targetLost", () => {
-            scanHint.style.display = 'block';
-            isTargetFound = false;
-            sakuraContainer.style.display = 'none';
-            sakuraContainer.innerHTML = ''; 
-            clearInterval(sakuraInterval);
-            sakuraInterval = null;
-        });
-    </script>
-</body>
-</html>
+        // 🌟 监听：只要底层摄像头真正在幕后跑起来了，马上点亮按钮！
+        sceneEl.addEventListener("arReady", () => {
+            startBtn.innerText = "唤醒天才樱木花道";
+            startBtn.classList.add('ready');
