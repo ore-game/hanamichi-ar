@@ -37,7 +37,7 @@
         :root { --sakuragi-red: #E60012; --soft-pink: #FFB6C1; --dark-pink: #FF9AAB; }
         body { margin: 0; overflow: hidden; font-family: -apple-system, sans-serif; background: #000; }
         
-        /* 针对手机端：强制视频全屏且不拉伸，这是识别成功的物理基础 */
+        /* 物理比例修正：确保识别不拉伸 */
         video { 
             object-fit: cover !important; 
             width: 100vw !important; 
@@ -46,7 +46,7 @@
             top: 0; left: 0;
         }
 
-        /* 封面遮罩层：保持极速消失动画 */
+        /* 封面遮罩层 */
         #loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, var(--soft-pink) 0%, var(--dark-pink) 100%);
@@ -75,24 +75,25 @@
 
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        /* 扫描引导框 */
+        /* 扫描引导框：去掉灰色蒙层，只保留纯净的边角 */
         #scan-hint {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 280px; height: 280px;
             pointer-events: none; display: none; z-index: 5;
-            background: radial-gradient(circle, transparent 150px, rgba(0,0,0,0.4) 155px);
         }
         .scan-frame {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 280px; height: 280px; border: 2px solid rgba(255, 255, 255, 0.8);
+            position: absolute; width: 100%; height: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 24px;
-            background: linear-gradient(to right, white 15px, transparent 15px) 0 0,
-                        linear-gradient(to right, white 15px, transparent 15px) 0 100%,
-                        linear-gradient(to left, white 15px, transparent 15px) 100% 0,
-                        linear-gradient(to left, white 15px, transparent 15px) 100% 100%,
-                        linear-gradient(to bottom, white 15px, transparent 15px) 0 0,
-                        linear-gradient(to bottom, white 15px, transparent 15px) 100% 0,
-                        linear-gradient(to top, white 15px, transparent 15px) 0 100%,
-                        linear-gradient(to top, white 15px, transparent 15px) 100% 100%;
+            /* 绘制白色四个角 */
+            background: linear-gradient(to right, white 20px, transparent 20px) 0 0,
+                        linear-gradient(to right, white 20px, transparent 20px) 0 100%,
+                        linear-gradient(to left, white 20px, transparent 20px) 100% 0,
+                        linear-gradient(to left, white 20px, transparent 20px) 100% 100%,
+                        linear-gradient(to bottom, white 20px, transparent 20px) 0 0,
+                        linear-gradient(to bottom, white 20px, transparent 20px) 100% 0,
+                        linear-gradient(to top, white 20px, transparent 20px) 0 100%,
+                        linear-gradient(to top, white 20px, transparent 20px) 100% 100%;
             background-repeat: no-repeat; background-size: 40px 40px;
         }
 
@@ -127,11 +128,11 @@
     <div id="scan-hint"><div class="scan-frame"></div></div>
     <div id="sakura-container"></div>
 
-    <!-- 手机端优化参数：warmupTolerance 3（中庸之道），filterMinCF 0.001（稳如老狗） -->
+    <!-- 手机端优化参数：warmupTolerance 3 确保对焦稳健 -->
     <a-scene 
         id="mainScene"
         loading-screen="enabled: false"
-        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no; warmupTolerance: 3; missTolerance: 30; filterMinCF: 0.001; filterBeta: 0.01;" 
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no; warmupTolerance: 3; missTolerance: 30; filterMinCF: 0.001;" 
         renderer="colorManagement: true, physicallyCorrectLights" 
         vr-mode-ui="enabled: false" 
         device-orientation-permission-ui="enabled: false">
@@ -164,16 +165,15 @@
         const scanHint = document.querySelector('#scan-hint');
         const sakuraContainer = document.querySelector('#sakura-container');
 
-        // --- 核心补丁：高频巡检并注入 Mock UI，彻底根治 showLoading 错误 ---
-        let isSystemReady = false;
+        // --- 核心就绪探测 ---
         const patcher = setInterval(() => {
             const arSystem = sceneEl.systems["mindar-image-system"];
             if (arSystem) {
+                // 补足 UI 方法，彻底消灭 showLoading 报错
                 if (!arSystem.ui) {
                     arSystem.ui = { showLoading:()=>{}, hideLoading:()=>{}, showScanning:()=>{}, hideScanning:()=>{} };
                 }
                 clearInterval(patcher);
-                isSystemReady = true;
                 startBtn.innerText = "唤醒天才樱木花道";
                 startBtn.classList.add('ready');
             }
@@ -194,29 +194,29 @@
             setTimeout(() => petal.remove(), 6000);
         }
 
-        // --- 极速交互逻辑 ---
+        // --- 交互逻辑 ---
         startBtn.addEventListener('click', () => {
-            if (!isSystemReady) return;
             const arSystem = sceneEl.systems["mindar-image-system"];
+            if (!arSystem) return;
             
             try {
                 arSystem.start(); 
-                startBtn.innerText = "正在打开时空...";
+                startBtn.innerText = "正在开启时空...";
                 startBtn.style.pointerEvents = "none";
 
-                // 监听 videoScanning 事件：这是手机端“摄像头已就绪”的硬指标
-                const onVideoStart = () => {
+                // 只有当摄像头画面刷出来之后，才拉开帘子
+                const onScan = () => {
                     overlay.style.opacity = '0';
                     setTimeout(() => { 
                         overlay.style.display = 'none'; 
                         scanHint.style.display = 'block'; 
                     }, 400);
-                    sceneEl.removeEventListener("videoScanning", onVideoStart);
+                    sceneEl.removeEventListener("videoScanning", onScan);
                 };
-                sceneEl.addEventListener("videoScanning", onVideoStart);
+                sceneEl.addEventListener("videoScanning", onScan);
                 
-                // 4秒保底切换，应对极端情况
-                setTimeout(() => { if(overlay.style.display !== 'none') onVideoStart(); }, 4000);
+                // 保底 4 秒拉帘
+                setTimeout(() => { if(overlay.style.display !== 'none') onScan(); }, 4000);
 
             } catch (err) {
                 window.location.reload();
