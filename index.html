@@ -48,7 +48,7 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, var(--soft-pink) 0%, var(--dark-pink) 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 999; transition: opacity 0.2s ease-out; padding: 40px 20px; box-sizing: border-box; text-align: center;
+            z-index: 999; transition: opacity 0.5s ease-out; padding: 40px 20px; box-sizing: border-box; text-align: center;
         }
         
         #loading-overlay h1 {
@@ -69,11 +69,11 @@
         .quote-text { font-size: 1.15rem; line-height: 1.8; font-weight: 500; display: block; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .quote-author { font-size: 0.9rem; margin-top: 15px; opacity: 0.8; display: block; text-align: right; letter-spacing: 1px; }
 
-        /* 按钮开局即就绪，绝不阻挡用户交互 */
         #start-btn {
             padding: 16px 60px; background: #FFFFFF; color: var(--sakuragi-red); border: none;
             border-radius: 50px; font-size: 1.1rem; font-weight: bold; cursor: pointer;
             box-shadow: 0 10px 25px rgba(230,0,18,0.2); animation: pulse 2s infinite; transition: all 0.2s;
+            position: relative; z-index: 1001;
         }
 
         #start-btn:active { transform: scale(0.95); }
@@ -88,7 +88,7 @@
         #error-msg {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: white; padding: 30px; border-radius: 20px; text-align: center;
-            z-index: 1000; display: none; width: 85%; max-width: 320px; box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            z-index: 2000; display: none; width: 85%; max-width: 320px; box-shadow: 0 20px 50px rgba(0,0,0,0.3);
         }
         #error-msg button { margin-top: 20px; padding: 10px 30px; background: var(--sakuragi-red); color: white; border: none; border-radius: 25px; font-weight: bold; }
 
@@ -135,8 +135,8 @@
     </div>
 
     <div id="error-msg">
-        <h3 style="color: var(--sakuragi-red); margin: 0 0 10px 0;">调用失败</h3>
-        <p id="error-text" style="font-size: 0.9rem; color: #666; line-height: 1.6;">请检查是否允许了摄像头权限。</p>
+        <h3 style="color: var(--sakuragi-red); margin: 0 0 10px 0;">无法访问摄像头</h3>
+        <p id="error-text" style="font-size: 0.9rem; color: #666; line-height: 1.6;">由于安全限制，请确保使用 HTTPS 访问，并允许摄像头权限。建议点击右上角“在浏览器打开”。</p>
         <button onclick="window.location.reload()">点此刷新重试</button>
     </div>
 
@@ -147,7 +147,7 @@
         id="mainScene"
         mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no;" 
         color-space="sRGB" 
-        renderer="colorManagement: true, physicallyCorrectLights" 
+        renderer="colorManagement: true;" 
         vr-mode-ui="enabled: false" 
         device-orientation-permission-ui="enabled: false">
         
@@ -156,7 +156,7 @@
             <a-asset-item id="ballModel" src="./ball.glb"></a-asset-item>
         </a-assets>
 
-        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+        <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;" raycaster="far: 10000; objects: .clickable"></a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0">
             <a-entity id="sakuragi" 
@@ -193,49 +193,48 @@
         const sakuraContainer = document.querySelector('#sakura-container');
         const errorBox = document.querySelector('#error-msg');
 
-        // 强力注入补丁，彻底防报错
-        const patchUIInterval = setInterval(() => {
-            const arSystem = sceneEl.systems["mindar-image-system"];
-            if (arSystem && !arSystem.ui) {
-                arSystem.ui = {
-                    showLoading: () => {}, hideLoading: () => {},
-                    showScanning: () => {}, hideScanning: () => {},
-                    showCompatibility: () => {}, hideCompatibility: () => {}
-                };
-                clearInterval(patchUIInterval);
-            }
-        }, 10);
-
-        // 核心提速 4：0延迟点击指令，10毫秒高频强突系统底层唤醒摄像头
+        // 优化：标准的启动逻辑
         startBtn.addEventListener('click', () => {
             startBtn.classList.add('loading');
             startBtn.innerText = '正在进入天才空间...';
             
-            const triggerAR = setInterval(() => {
-                const arSystem = sceneEl.systems["mindar-image-system"];
-                if (arSystem) {
-                    clearInterval(triggerAR);
-                    arSystem.start(); // 直接指令，立刻弹出摄像头授权，耗时通常 < 1秒
-                }
-            }, 10);
+            // 确保 AR 系统已挂载
+            const arSystem = sceneEl.systems["mindar-image-system"];
+            if (arSystem) {
+                // 强制请求摄像头权限
+                navigator.mediaDevices.getUserMedia({ video: true })
+                .then((stream) => {
+                    // 权限成功，停止临时流
+                    stream.getTracks().forEach(track => track.stop());
+                    // 启动 AR
+                    arSystem.start();
+                })
+                .catch((err) => {
+                    console.error("Camera denied:", err);
+                    errorBox.style.display = 'block';
+                    startBtn.innerText = "唤醒失败";
+                    startBtn.classList.remove('loading');
+                });
+            }
         });
 
-        // 核心提速 5：只要摄像头画面一就绪，封面立刻无缝消失，完全展现满血状态
+        // 监听 AR 就绪
         sceneEl.addEventListener("arReady", () => {
             overlay.style.opacity = '0';
             setTimeout(() => { 
                 overlay.style.display = 'none'; 
                 scanHint.style.display = 'block'; 
-            }, 200);
+            }, 500);
         });
 
+        // 监听 AR 错误
         sceneEl.addEventListener("arError", (event) => {
             errorBox.style.display = 'block';
             startBtn.innerText = "唤醒失败";
             startBtn.classList.remove('loading');
         });
 
-        // 樱花与扫描逻辑
+        // 樱花特效逻辑
         let sakuraInterval;
         let isTargetFound = false;
 
