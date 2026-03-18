@@ -4,11 +4,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>樱木花道 GENIUS 10</title>
+
+    <link rel="preload" href="./targets.mind" as="fetch" crossorigin="anonymous">
+    <link rel="preload" href="./final.glb" as="fetch" crossorigin="anonymous">
+    <link rel="preload" href="./ball.glb" as="fetch" crossorigin="anonymous">
+
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+    
     <script>
-        // 模型材质修复组件：解决眉毛和眼睛的显示层级问题
         AFRAME.registerComponent('model-fixer', {
             init: function () {
                 this.el.addEventListener('model-loaded', () => {
@@ -79,20 +84,11 @@
 
         .quote-author { font-size: 0.9rem; margin-top: 15px; opacity: 0.8; display: block; text-align: right; letter-spacing: 1px; }
 
-        /* 🌟 核心修改 1：移除灰色等待状态，按钮一上来就是可点击的“高亮状态” */
         #start-btn {
-            padding: 16px 60px;
-            background: #FFFFFF;
-            color: var(--sakuragi-red);
-            border: none;
-            border-radius: 50px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 10px 25px rgba(230,0,18,0.2);
-            animation: pulse 2s infinite;
-            transition: all 0.2s ease;
-            pointer-events: auto; /* 允许立即点击 */
+            padding: 16px 60px; background: #FFFFFF; color: var(--sakuragi-red);
+            border: none; border-radius: 50px; font-size: 1.1rem; font-weight: bold;
+            cursor: pointer; box-shadow: 0 10px 25px rgba(230,0,18,0.2);
+            animation: pulse 2s infinite; transition: all 0.2s ease; pointer-events: auto; 
         }
         
         #start-btn:active { transform: scale(0.95); }
@@ -230,15 +226,11 @@
         const errorBox = document.querySelector('#error-msg');
         const errorText = document.querySelector('#error-text');
 
-        // 废弃了之前的 sceneEl.addEventListener('loaded', ...) 等待逻辑
-        // 现在全靠高速轮询去抢占摄像头启动时机
-
         sceneEl.addEventListener("arError", (event) => {
             errorBox.style.display = 'block';
             errorText.innerText = "摄像头调用失败，建议换用系统自带浏览器或刷新页面并允许摄像头权限。";
         });
 
-        // --- 樱花特效逻辑 ---
         let sakuraInterval;
         let isTargetFound = false;
 
@@ -267,14 +259,12 @@
             }, duration * 1000);
         }
 
-        // --- 🌟 核心修改 2：点击后极限提速启动 ---
         startBtn.addEventListener('click', () => {
             startBtn.style.pointerEvents = 'none';
             startBtn.innerText = '正在启动摄像头...';
             startBtn.style.animation = 'none';
             startBtn.style.opacity = '0.7';
 
-            // 设置一个 50 毫秒一次的高频轮询，只要 MindAR 系统一挂载，立刻调起摄像头
             const fastStart = setInterval(() => {
                 const arSystem = sceneEl.systems["mindar-image-system"];
                 if (arSystem) {
@@ -289,7 +279,6 @@
             }, 50); 
         });
 
-        // --- 监听 arReady 事件（摄像头有画面了）再隐藏粉色封面 ---
         sceneEl.addEventListener("arReady", () => {
             scanHint.style.display = 'block';
             overlay.style.opacity = '0';
@@ -298,7 +287,6 @@
             }, 400);
         });
 
-        // --- 扫描状态联动 ---
         sceneEl.addEventListener("targetFound", () => {
             scanHint.style.display = 'none';
             isTargetFound = true;
