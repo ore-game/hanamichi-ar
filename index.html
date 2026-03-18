@@ -42,8 +42,11 @@
 
         body { margin: 0; overflow: hidden; font-family: -apple-system, system-ui, sans-serif; background: #000; }
         
-        /* 强制修正 AR 视频流在部分手机上的变形问题 */
-        video { object-fit: cover !important; }
+        /* 增加对比度和亮度补丁，辅助算法识别 */
+        video { 
+            object-fit: cover !important; 
+            filter: contrast(1.1) brightness(1.05) saturate(1.1);
+        }
 
         /* 封面遮罩层 */
         #loading-overlay {
@@ -87,9 +90,7 @@
             opacity: 0.6; pointer-events: none;
         }
 
-        #start-btn.ready {
-            opacity: 1; pointer-events: auto;
-        }
+        #start-btn.ready { opacity: 1; pointer-events: auto; }
 
         @keyframes pulse {
             0% { transform: scale(1); }
@@ -97,9 +98,10 @@
             100% { transform: scale(1); }
         }
 
+        /* 扫描引导框：增加动态扫码线 */
         .scanning-target {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 260px; height: 260px; border: 2px solid rgba(255, 255, 255, 0.3);
+            width: 260px; height: 260px; border: 2px solid rgba(255, 255, 255, 0.5);
             border-radius: 20px; pointer-events: none; display: none;
             background: linear-gradient(to right, white 20px, transparent 20px) 0 0,
                         linear-gradient(to right, white 20px, transparent 20px) 0 100%,
@@ -111,6 +113,13 @@
                         linear-gradient(to top, white 20px, transparent 20px) 100% 100%;
             background-repeat: no-repeat; background-size: 40px 40px;
         }
+        
+        .scanning-target::after {
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+            background: rgba(255, 255, 255, 0.5); box-shadow: 0 0 10px white;
+            animation: scanLine 2s linear infinite;
+        }
+        @keyframes scanLine { 0% { top: 0; } 100% { top: 100%; } }
 
         #sakura-container {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -147,11 +156,11 @@
     <div class="scanning-target" id="scan-hint"></div>
     <div id="sakura-container"></div>
 
-    <!-- 优化识别参数：warmupTolerance 提高稳定性，missTolerance 提高容错 -->
+    <!-- 极限识别参数优化 -->
     <a-scene 
         id="mainScene"
         loading-screen="enabled: false"
-        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no; warmupTolerance: 5; missTolerance: 30; filterMinCF: 0.001; filterBeta: 0.01;" 
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no; warmupTolerance: 2; missTolerance: 100; filterMinCF: 0.0001; filterBeta: 0.001;" 
         color-space="sRGB" 
         renderer="colorManagement: true, physicallyCorrectLights" 
         vr-mode-ui="enabled: false" 
@@ -228,7 +237,7 @@
 
             try {
                 arSystem.start();
-                startBtn.innerText = "正在开启时空...";
+                startBtn.innerText = "正在激活时空...";
                 startBtn.style.pointerEvents = 'none';
 
                 const reveal = () => {
