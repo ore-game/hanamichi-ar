@@ -4,12 +4,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>樱木花道 GENIUS 10</title>
-    <!-- A-Frame & MindAR 基础库 -->
+    <!-- 引入 A-Frame & MindAR 高性能生产版 -->
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+    
     <script>
-        // 模型材质修复：解决细节显示问题
+        // 极致材质修复：针对移动端 GPU 优化渲染
         AFRAME.registerComponent('model-fixer', {
             init: function () {
                 this.el.addEventListener('model-loaded', () => {
@@ -17,15 +18,13 @@
                     if (!mesh) return;
                     mesh.traverse((node) => {
                         if (node.isMesh) {
-                            node.material.side = THREE.DoubleSide;
-                            const isFaceDetail = /eye|brow/i.test(node.name) || node.material.transparent;
-                            if (isFaceDetail) {
+                            node.material.side = THREE.DoubleSide; // 防止眉毛背面透明
+                            if (/eye|brow/i.test(node.name) || node.material.transparent) {
                                 node.material.transparent = true;
-                                node.material.alphaTest = 0.05; 
-                                node.material.depthWrite = true; 
+                                node.material.depthWrite = true;
                                 node.material.depthTest = true;
-                                node.renderOrder = 10; 
-                                node.material.needsUpdate = true;
+                                node.material.alphaTest = 0.1;
+                                node.renderOrder = 999; // 强制最前层渲染
                             }
                         }
                     });
@@ -33,105 +32,78 @@
             }
         });
     </script>
-    <style>
-        :root {
-            --sakuragi-red: #E60012;
-            --soft-pink: #FFB6C1;
-            --dark-pink: #FF9AAB;
-        }
 
+    <style>
+        :root { --sakuragi-red: #E60012; --soft-pink: #FFB6C1; --dark-pink: #FF9AAB; }
         body { margin: 0; overflow: hidden; font-family: -apple-system, sans-serif; background: #000; }
         
-        /* 针对手机浏览器的视频修正：防止画面拉伸导致的识别失败 */
-        video { 
-            object-fit: cover !important; 
-            width: 100vw !important; 
-            height: 100vh !important; 
-            position: absolute; 
-            top: 0; 
-            left: 0;
-        }
+        /* 极致流畅视频：确保不失真 */
+        video { object-fit: cover !important; width: 100vw !important; height: 100vh !important; }
 
-        /* 封面遮罩层 */
+        /* 极速封面 */
         #loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, var(--soft-pink) 0%, var(--dark-pink) 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 999; transition: opacity 0.5s ease-out;
-            padding: 40px 20px; box-sizing: border-box; text-align: center;
+            z-index: 999; transition: opacity 0.3s ease; /* 加快消失速度 */
+            padding: 20px; box-sizing: border-box; text-align: center;
         }
         
         #loading-overlay h1 {
             color: white; text-shadow: 0 4px 10px rgba(0,0,0,0.15);
-            margin: 0; font-size: 3.5rem; letter-spacing: -2px; font-weight: 900; font-style: italic;
-            animation: float 3s ease-in-out infinite;
+            font-size: 3.5rem; letter-spacing: -2px; font-weight: 900; font-style: italic;
+            margin: 0; animation: float 3s ease-in-out infinite;
         }
 
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
-        .quote-container { position: relative; color: white; max-width: 280px; margin: 50px 0; padding: 20px; }
-        .quote-container::before, .quote-container::after { content: ''; position: absolute; width: 25px; height: 25px; border: 2px solid rgba(255,255,255,0.4); }
-        .quote-container::before { top: 0; left: 0; border-right: 0; border-bottom: 0; }
-        .quote-container::after { bottom: 0; right: 0; border-left: 0; border-top: 0; }
-
+        /* 唤醒按钮 */
         #start-btn {
             padding: 16px 60px; background: #FFFFFF; color: var(--sakuragi-red);
             border: none; border-radius: 50px; font-size: 1.1rem; font-weight: bold;
             box-shadow: 0 10px 25px rgba(230,0,18,0.2); cursor: pointer;
-            transition: all 0.3s ease; animation: pulse 2s infinite;
+            transition: all 0.2s ease; animation: pulse 2s infinite;
             opacity: 0.6; pointer-events: none;
         }
-
         #start-btn.ready { opacity: 1; pointer-events: auto; }
 
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        /* 强力扫描引导框：黑色蒙层帮助对焦 */
+        /* 高性能扫描框 */
         #scan-hint {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; display: none; z-index: 5;
-            background: radial-gradient(circle, transparent 150px, rgba(0,0,0,0.5) 155px);
+            background: radial-gradient(circle, transparent 150px, rgba(0,0,0,0.4) 155px);
         }
-        
         .scan-frame {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 300px; height: 300px; border: 2px solid rgba(255, 255, 255, 0.8);
+            width: 280px; height: 280px; border: 2px solid rgba(255, 255, 255, 0.8);
             border-radius: 24px;
-            background: linear-gradient(to right, white 20px, transparent 20px) 0 0,
-                        linear-gradient(to right, white 20px, transparent 20px) 0 100%,
-                        linear-gradient(to left, white 20px, transparent 20px) 100% 0,
-                        linear-gradient(to left, white 20px, transparent 20px) 100% 100%,
-                        linear-gradient(to bottom, white 20px, transparent 20px) 0 0,
-                        linear-gradient(to bottom, white 20px, transparent 20px) 100% 0,
-                        linear-gradient(to top, white 20px, transparent 20px) 0 100%,
-                        linear-gradient(to top, white 20px, transparent 20px) 100% 100%;
+            background: linear-gradient(to right, white 15px, transparent 15px) 0 0,
+                        linear-gradient(to right, white 15px, transparent 15px) 0 100%,
+                        linear-gradient(to left, white 15px, transparent 15px) 100% 0,
+                        linear-gradient(to left, white 15px, transparent 15px) 100% 100%,
+                        linear-gradient(to bottom, white 15px, transparent 15px) 0 0,
+                        linear-gradient(to bottom, white 15px, transparent 15px) 100% 0,
+                        linear-gradient(to top, white 15px, transparent 15px) 0 100%,
+                        linear-gradient(to top, white 15px, transparent 15px) 100% 100%;
             background-repeat: no-repeat; background-size: 40px 40px;
         }
-        
-        .scan-line {
-            position: absolute; top: 0; left: 0; width: 100%; height: 2px;
-            background: rgba(255, 255, 255, 0.8); box-shadow: 0 0 15px white;
-            animation: scanAnim 3s linear infinite;
-        }
-        @keyframes scanAnim { 0% { top: 0%; } 100% { top: 100%; } }
 
-        /* 樱花容器 */
+        /* 极致层级樱花 */
         #sakura-container {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 9999; display: none; overflow: hidden;
         }
-
         .sakura-petal {
             position: absolute; background: linear-gradient(135deg, #ffd1da 0%, #ffb6c1 100%);
             border-radius: 100% 0px 100% 0px; opacity: 0;
             box-shadow: 0 0 6px rgba(255, 182, 193, 0.4);
             animation: fall linear infinite;
         }
-
         @keyframes fall {
             0% { transform: translate3d(0, -50px, 0) rotate(0deg); opacity: 0; }
-            20% { opacity: 0.8; }
-            80% { opacity: 0.8; }
+            15% { opacity: 0.8; }
             100% { transform: translate3d(var(--endX), 105vh, 0) rotate(var(--rot)); opacity: 0; }
         }
     </style>
@@ -140,27 +112,21 @@
 
     <div id="loading-overlay">
         <h1>GENIUS 10</h1>
-        <div class="quote-container">
+        <div style="margin: 40px 0; color: white; max-width: 280px; position: relative; padding: 20px; border-left: 2px solid rgba(255,255,255,0.3); border-right: 2px solid rgba(255,255,255,0.3);">
             <span style="font-size: 1.1rem; line-height: 1.8; font-weight: 500;">“老头子，你最光辉的时刻是在什么时候？而我，就是现在了！”</span>
         </div>
-        <button id="start-btn">唤醒天才樱木花道</button>
-        <p style="color: white; margin-top: 30px; font-size: 0.75rem; opacity: 0.6;">POWERED BY MINDAR</p>
+        <button id="start-btn">正在准备天才...</button>
     </div>
 
-    <div id="scan-hint">
-        <div class="scan-frame">
-            <div class="scan-line"></div>
-        </div>
-    </div>
+    <div id="scan-hint"><div class="scan-frame"></div></div>
     <div id="sakura-container"></div>
 
-    <!-- 关键参数优化：针对手机端大幅降低特征点匹配过滤阈值 -->
+    <!-- 针对手机端极致优化的 MindAR 参数 -->
     <a-scene 
         id="mainScene"
         loading-screen="enabled: false"
-        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no; warmupTolerance: 3; missTolerance: 60; filterMinCF: 0.0001; filterBeta: 0.001;" 
-        color-space="sRGB" 
-        renderer="colorManagement: true, physicallyCorrectLights" 
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no; warmupTolerance: 1; missTolerance: 30; filterMinCF: 0.0001; filterBeta: 0.001;" 
+        renderer="colorManagement: true, physicallyCorrectLights, antialias: false; precision: medium;" 
         vr-mode-ui="enabled: false" 
         device-orientation-permission-ui="enabled: false">
         
@@ -180,8 +146,8 @@
                     <a-text value="I'M A GENIUS !" color="#E60012" align="center" width="4.8" position="0 0 0.02"></a-text>
                 </a-entity>
             </a-entity>
-            <a-light type="ambient" intensity="0.7"></a-light>
-            <a-light type="directional" position="1 2 2" intensity="1"></a-light>
+            <a-light type="ambient" intensity="0.8"></a-light>
+            <a-light type="directional" position="1 2 2" intensity="0.8"></a-light>
         </a-entity>
     </a-scene>
 
@@ -192,61 +158,72 @@
         const scanHint = document.querySelector('#scan-hint');
         const sakuraContainer = document.querySelector('#sakura-container');
 
-        const checkReady = setInterval(() => {
+        // --- 核心补丁：高频巡检并瞬间注入虚拟 UI ---
+        let isSystemReady = false;
+        const patcher = setInterval(() => {
             const arSystem = sceneEl.systems["mindar-image-system"];
             if (arSystem) {
+                // 瞬间补足缺失的 UI 模块，攻克 showLoading 报错
                 if (!arSystem.ui) {
                     arSystem.ui = { showLoading:()=>{}, hideLoading:()=>{}, showScanning:()=>{}, hideScanning:()=>{} };
                 }
-                clearInterval(checkReady);
+                clearInterval(patcher);
+                isSystemReady = true;
+                startBtn.innerText = "唤醒天才樱木花道";
                 startBtn.classList.add('ready');
             }
-        }, 100);
+        }, 20warmupTolerance0);
 
+        // --- 樱花生成器 ---
         let sakuraInterval = null;
-        function createSakuraPetal() {
+        function createPetal() {
             const petal = document.createElement('div');
-            petal.classList.add('sakura-petal');
+            petal.className = 'sakura-petal';
             petal.style.left = Math.random() * 100 + 'vw';
             const size = Math.random() * 8 + 8;
             petal.style.width = size + 'px'; petal.style.height = size + 'px';
-            petal.style.animationDuration = (Math.random() * 3 + 4) + 's';
+            petal.style.animationDuration = (Math.random() * 3 + 3) + 's';
             petal.style.setProperty('--endX', (Math.random() * 40 - 20) + 'vw');
             petal.style.setProperty('--rot', (Math.random() * 720) + 'deg');
             sakuraContainer.appendChild(petal);
-            setTimeout(() => petal.remove(), 7000);
+            setTimeout(() => petal.remove(), 6000);
         }
 
+        // --- 极致交互响应 ---
         startBtn.addEventListener('click', () => {
+            if (!isSystemReady) return;
             const arSystem = sceneEl.systems["mindar-image-system"];
-            if (!arSystem) return;
-
+            
             try {
+                // 强制唤醒摄像头
                 arSystem.start();
-                startBtn.innerText = "时空开启中...";
+                startBtn.innerText = "准备进入...";
                 startBtn.style.pointerEvents = "none";
 
-                const onReady = () => {
+                // 【核心优化】监听视频流正式扫描事件，无缝切换
+                const onVideoStart = () => {
                     overlay.style.opacity = '0';
                     setTimeout(() => { 
                         overlay.style.display = 'none'; 
                         scanHint.style.display = 'block'; 
-                    }, 500);
+                    }, 300);
+                    sceneEl.removeEventListener("videoScanning", onVideoStart);
                 };
-
-                sceneEl.addEventListener("arReady", onReady);
-                sceneEl.addEventListener("videoScanning", onReady);
-                setTimeout(() => { if(overlay.style.display !== 'none') onReady(); }, 4000);
+                sceneEl.addEventListener("videoScanning", onVideoStart);
+                
+                // 保底 3 秒极速切换
+                setTimeout(() => { if(overlay.style.display !== 'none') onVideoStart(); }, 3000);
 
             } catch (err) {
                 window.location.reload();
             }
         });
 
+        // --- 瞬间识别联动 ---
         sceneEl.addEventListener("targetFound", () => {
             scanHint.style.display = 'none';
             sakuraContainer.style.display = 'block';
-            if (!sakuraInterval) sakuraInterval = setInterval(createSakuraPetal, 300);
+            if (!sakuraInterval) sakuraInterval = setInterval(createPetal, 200);
         });
 
         sceneEl.addEventListener("targetLost", () => {
