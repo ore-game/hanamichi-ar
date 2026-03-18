@@ -42,11 +42,8 @@
 
         body { margin: 0; overflow: hidden; font-family: -apple-system, system-ui, sans-serif; background: #000; }
         
-        /* 增加对比度和亮度补丁，辅助算法识别 */
-        video { 
-            object-fit: cover !important; 
-            filter: contrast(1.1) brightness(1.05) saturate(1.1);
-        }
+        /* 针对 Safari/微信的视频适配 */
+        video { object-fit: cover !important; }
 
         /* 封面遮罩层 */
         #loading-overlay {
@@ -98,10 +95,9 @@
             100% { transform: scale(1); }
         }
 
-        /* 扫描引导框：增加动态扫码线 */
         .scanning-target {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 260px; height: 260px; border: 2px solid rgba(255, 255, 255, 0.5);
+            width: 260px; height: 260px; border: 2px solid rgba(255, 255, 255, 0.6);
             border-radius: 20px; pointer-events: none; display: none;
             background: linear-gradient(to right, white 20px, transparent 20px) 0 0,
                         linear-gradient(to right, white 20px, transparent 20px) 0 100%,
@@ -116,11 +112,12 @@
         
         .scanning-target::after {
             content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 2px;
-            background: rgba(255, 255, 255, 0.5); box-shadow: 0 0 10px white;
+            background: rgba(255, 255, 255, 0.8); box-shadow: 0 0 10px white;
             animation: scanLine 2s linear infinite;
         }
         @keyframes scanLine { 0% { top: 0; } 100% { top: 100%; } }
 
+        /* 樱花容器：z-index 设为最高 */
         #sakura-container {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 9999; display: none; overflow: hidden;
@@ -156,11 +153,10 @@
     <div class="scanning-target" id="scan-hint"></div>
     <div id="sakura-container"></div>
 
-    <!-- 极限识别参数优化 -->
     <a-scene 
         id="mainScene"
         loading-screen="enabled: false"
-        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no; warmupTolerance: 2; missTolerance: 100; filterMinCF: 0.0001; filterBeta: 0.001;" 
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no; warmupTolerance: 5; missTolerance: 20; filterMinCF: 0.001; filterBeta: 0.01;" 
         color-space="sRGB" 
         renderer="colorManagement: true, physicallyCorrectLights" 
         vr-mode-ui="enabled: false" 
@@ -176,7 +172,6 @@
         <a-entity mindar-image-target="targetIndex: 0">
             <a-entity id="sakuragi" gltf-model="#characterModel" model-fixer rotation="0 0 0" position="0 0 0" scale="0.5 0.5 0.5" animation-mixer>
                 <a-entity gltf-model="#ballModel" position="0.35 1.0 0.15" animation="property: rotation; to: 0 360 0; loop: true; dur: 3000; easing: linear"></a-entity>
-                <!-- 对话气泡 -->
                 <a-entity position="1.1 2.3 0" animation="property: position; to: 1.1 2.40 0; dir: alternate; dur: 2000; loop: true">
                     <a-entity geometry="primitive: circle; radius: 0.85" material="color: #E60012; shader: flat; opacity: 0.75" position="0 0 -0.01" scale="1 0.45 1"></a-entity>
                     <a-entity geometry="primitive: circle; radius: 0.8" material="color: #ffffff; shader: flat" scale="1 0.45 1"></a-entity>
@@ -195,12 +190,13 @@
         const scanHint = document.querySelector('#scan-hint');
         const sakuraContainer = document.querySelector('#sakura-container');
 
-        // --- 核心加固：极速挂载与补丁 ---
         let isSystemReady = false;
         
+        // --- 核心监测补丁 ---
         const patchSystem = setInterval(() => {
             const arSystem = sceneEl.systems["mindar-image-system"];
             if (arSystem) {
+                // 【核心补丁】防止 showLoading 报错
                 if (!arSystem.ui) {
                     arSystem.ui = {
                         showLoading: () => {}, hideLoading: () => {},
@@ -212,9 +208,8 @@
                 startBtn.innerText = "唤醒天才樱木花道";
                 startBtn.classList.add('ready');
             }
-        }, 50);
+        }, 100);
 
-        // --- 樱花特效逻辑 ---
         let sakuraInterval = null;
         function createSakuraPetal() {
             const petal = document.createElement('div');
@@ -230,12 +225,18 @@
             setTimeout(() => petal.remove(), 7000);
         }
 
-        // --- 唤醒交互 ---
         startBtn.addEventListener('click', () => {
             if (!isSystemReady) return;
             const arSystem = sceneEl.systems["mindar-image-system"];
 
             try {
+                // Safari 视频流补丁
+                const video = document.querySelector('video');
+                if (video) {
+                    video.setAttribute('playsinline', '');
+                    video.setAttribute('webkit-playsinline', '');
+                }
+
                 arSystem.start();
                 startBtn.innerText = "正在激活时空...";
                 startBtn.style.pointerEvents = 'none';
@@ -252,16 +253,14 @@
 
                 sceneEl.addEventListener("arReady", reveal);
                 sceneEl.addEventListener("videoScanning", reveal);
-
                 setTimeout(() => { if(overlay.style.display !== 'none') reveal(); }, 4000);
 
             } catch (err) {
-                console.warn("启动补丁处理:", err);
+                console.warn("启动已由补丁接管:", err);
                 window.location.reload(); 
             }
         });
 
-        // --- 识别联动 ---
         sceneEl.addEventListener("targetFound", () => {
             scanHint.style.display = 'none';
             sakuraContainer.style.display = 'block';
