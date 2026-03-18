@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>樱木花道 GENIUS 10</title>
+    <!-- 引入 A-Frame 和 MindAR -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <!-- 引入 aframe-extras 库，用于播放 glTF 模型的动画 -->
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+    <style>
+        :root {
+            --sakuragi-red: #E60012;
+            --soft-pink: #FFB6C1;
+            --dark-pink: #FF9AAB;
+        }
+
+        body { margin: 0; overflow: hidden; font-family: 'Helvetica Neue', Helvetica, Arial, "Microsoft YaHei", sans-serif; }
+        
+        /* 封面层 */
+        #loading-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, var(--soft-pink) 0%, var(--dark-pink) 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            transition: opacity 0.6s ease-out;
+            padding: 40px 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        
+        #loading-overlay h1 {
+            color: white;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            margin: 0;
+            font-size: 3.5rem;
+            letter-spacing: -2px;
+            font-weight: 900;
+            font-style: italic;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .quote-container {
+            position: relative;
+            color: white;
+            max-width: 280px;
+            margin: 50px 0;
+            padding: 20px;
+        }
+
+        .quote-container::before, .quote-container::after {
+            content: '';
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 2px solid rgba(255,255,255,0.4);
+        }
+        .quote-container::before { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+        .quote-container::after { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+
+        .quote-text {
+            font-size: 1.15rem;
+            line-height: 1.8;
+            font-weight: 500;
+            display: block;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .quote-author {
+            font-size: 0.9rem;
+            margin-top: 15px;
+            opacity: 0.8;
+            display: block;
+            text-align: right;
+            letter-spacing: 1px;
+        }
+
+        #start-btn {
+            padding: 16px 80px;
+            background: #FFFFFF; 
+            color: var(--sakuragi-red);      
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(230,0,18,0.2);
+            transition: all 0.3s ease;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(255, 255, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+        }
+
+        #start-btn:active { transform: scale(0.92); }
+
+        .scanning-target {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 260px; height: 260px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            pointer-events: none;
+            display: none;
+            background: linear-gradient(to right, white 20px, transparent 20px) 0 0,
+                        linear-gradient(to right, white 20px, transparent 20px) 0 100%,
+                        linear-gradient(to left, white 20px, transparent 20px) 100% 0,
+                        linear-gradient(to left, white 20px, transparent 20px) 100% 100%,
+                        linear-gradient(to bottom, white 20px, transparent 20px) 0 0,
+                        linear-gradient(to bottom, white 20px, transparent 20px) 100% 0,
+                        linear-gradient(to top, white 20px, transparent 20px) 0 100%,
+                        linear-gradient(to top, white 20px, transparent 20px) 100% 100%;
+            background-repeat: no-repeat;
+            background-size: 40px 40px;
+        }
+
+        /* 【新增】樱花特效容器与样式 */
+        #sakura-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 10;
+            display: none; /* 默认隐藏，扫出目标后显示 */
+            overflow: hidden;
+        }
+
+        .sakura-petal {
+            position: absolute;
+            background: linear-gradient(135deg, #ffd1da 0%, #ffb6c1 100%);
+            border-radius: 100% 0px 100% 0px; /* 模拟花瓣形状 */
+            opacity: 0.8;
+            box-shadow: 0 0 6px rgba(255, 182, 193, 0.6);
+            animation: fall linear infinite;
+        }
+
+        @keyframes fall {
+            0% {
+                transform: translate3d(0, -50px, 0) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.9;
+            }
+            90% {
+                opacity: 0.9;
+            }
+            100% {
+                transform: translate3d(var(--endX), 100vh, 0) rotate(var(--rot));
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 加载封面 -->
+    <div id="loading-overlay">
+        <h1>GENIUS 10</h1>
+        
+        <div class="quote-container">
+            <span class="quote-text">“老头子，你最光辉的时刻是在什么时候？而我，就是现在了！”</span>
+            <span class="quote-author">—— 樱木花道</span>
+        </div>
+
+        <button id="start-btn">唤醒天才樱木花道</button>
+        <p style="color: white; margin-top: 30px; font-size: 0.75rem; opacity: 0.6; letter-spacing: 1px;">POWERED BY MINDAR</p>
+    </div>
+
+    <!-- 扫描提示 -->
+    <div class="scanning-target" id="scan-hint"></div>
+
+    <!-- 【新增】樱花特效容器 -->
+    <div id="sakura-container"></div>
+
+    <a-scene 
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no;" 
+        color-space="sRGB" 
+        renderer="colorManagement: true, physicallyCorrectLights" 
+        vr-mode-ui="enabled: false" 
+        device-orientation-permission-ui="enabled: false">
+        
+        <a-assets>
+            <a-asset-item id="characterModel" src="./final.glb"></a-asset-item>
+            <a-asset-item id="ballModel" src="./ball.glb"></a-asset-item>
+        </a-assets>
+
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <a-entity mindar-image-target="targetIndex: 0">
+            
+            <a-entity id="sakuragi" 
+                      gltf-model="#characterModel" 
+                      rotation="90 0 0" 
+                      position="0 0 0" 
+                      scale="0.5 0.5 0.5"
+                      animation-mixer="clip: *; loop: repeat;">
+                
+                <a-entity id="basketball" 
+                          gltf-model="#ballModel" 
+                          position="0.35 1.0 0.15" 
+                          scale="1.0 1.0 1.70"
+                          animation="property: rotation; to: 0 360 0; loop: true; dur: 3000; easing: linear">
+                </a-entity>
+
+                <!-- 【修改】更美观的动态悬浮字幕 -->
+                <!-- 加入了上下浮动的 animation 效果，使对话气泡看起来像在呼吸 -->
+                <a-entity position="1.1 2.3 0" 
+                          animation="property: position; to: 1.1 2.45 0; dir: alternate; dur: 2000; easing: easeInOutSine; loop: true">
+                    
+                    <!-- 气泡主体：去掉了黑边，改为半透明磨砂白 -->
+                    <a-entity geometry="primitive: plane; width: 1.5; height: 0.6" 
+                              material="color: #ffffff; shader: flat; transparent: true; opacity: 0.9"
+                              position="0 0 0">
+                        <a-text value="I'm a GENIUS!" 
+                                color="#E60012" 
+                                align="center" 
+                                width="4.5" 
+                                font="kelsonsans"
+                                position="0 0 0.02">
+                        </a-text>
+                    </a-entity>
+                    
+                    <!-- 气泡尾巴：也统一为柔和的白色 -->
+                    <a-entity geometry="primitive: triangle" 
+                              material="color: #ffffff; shader: flat; transparent: true; opacity: 0.9" 
+                              position="-0.6 -0.35 0" 
+                              rotation="0 0 145" 
+                              scale="0.25 0.25 1">
+                    </a-entity>
+                </a-entity>
+
+            </a-entity>
+
+            <!-- 增强光效 -->
+            <a-light type="ambient" intensity="0.7"></a-light>
+            <a-light type="directional" position="1 2 2" intensity="1"></a-light>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        const startBtn = document.querySelector('#start-btn');
+        const overlay = document.querySelector('#loading-overlay');
+        const sceneEl = document.querySelector('a-scene');
+        const scanHint = document.querySelector('#scan-hint');
+        const sakuraContainer = document.querySelector('#sakura-container');
+
+        // --- 樱花生成逻辑 ---
+        let sakuraInterval;
+        let isTargetFound = false;
+
+        function createSakuraPetal() {
+            if (!isTargetFound) return;
+            
+            const petal = document.createElement('div');
+            petal.classList.add('sakura-petal');
+            
+            // 随机起始水平位置
+            petal.style.left = Math.random() * 100 + 'vw';
+            
+            // 随机大小 (8px - 18px)
+            const size = Math.random() * 10 + 8;
+            petal.style.width = size + 'px';
+            petal.style.height = size + 'px';
+            
+            // 随机下落时间 (4s - 8s)
+            const duration = Math.random() * 4 + 4;
+            petal.style.animationDuration = duration + 's';
+            
+            // 随机飘落的终点偏移和旋转角度
+            const endX = (Math.random() * 300 - 150) + 'px';
+            const rot = (Math.random() * 360 + 360) + 'deg';
+            petal.style.setProperty('--endX', endX);
+            petal.style.setProperty('--rot', rot);
+            
+            sakuraContainer.appendChild(petal);
+            
+            // 动画结束后移除花瓣，防止内存泄漏
+            setTimeout(() => {
+                if (petal.parentNode) {
+                    petal.remove();
+                }
+            }, duration * 1000);
+        }
+
+        // --- 交互逻辑 ---
+        startBtn.addEventListener('click', () => {
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                scanHint.style.display = 'block';
+                sceneEl.systems["mindar-image-system"].start();
+            }, 600);
+        });
+
+        sceneEl.addEventListener("targetFound", () => {
+            scanHint.style.display = 'none';
+            // 模型出现，开启樱花特效
+            isTargetFound = true;
+            sakuraContainer.style.display = 'block';
+            sakuraInterval = setInterval(createSakuraPetal, 200); // 每200ms生成一片花瓣
+        });
+
+        sceneEl.addEventListener("targetLost", () => {
+            scanHint.style.display = 'block';
+            // 模型丢失，关闭樱花特效
+            isTargetFound = false;
+            sakuraContainer.style.display = 'none';
+            sakuraContainer.innerHTML = ''; // 清空画面上的花瓣
+            clearInterval(sakuraInterval);
+        });
+    </script>
+</body>
+</html>
