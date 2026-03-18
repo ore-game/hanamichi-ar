@@ -40,7 +40,6 @@
 
         body { margin: 0; overflow: hidden; font-family: 'Helvetica Neue', Helvetica, Arial, "Microsoft YaHei", sans-serif; background: #000; }
         
-        /* 强制拉伸视频，防止部分手机扫描变形 */
         video { object-fit: cover !important; }
 
         /* 封面遮罩层 */
@@ -48,7 +47,7 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, var(--soft-pink) 0%, var(--dark-pink) 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 999; transition: opacity 0.5s ease-out;
+            z-index: 999; transition: opacity 0.4s ease-out;
             padding: 40px 20px; box-sizing: border-box; text-align: center;
         }
         
@@ -80,23 +79,23 @@
 
         .quote-author { font-size: 0.9rem; margin-top: 15px; opacity: 0.8; display: block; text-align: right; letter-spacing: 1px; }
 
-        /* 初始准备状态按钮 */
+        /* 🌟 核心修改 1：移除灰色等待状态，按钮一上来就是可点击的“高亮状态” */
         #start-btn {
             padding: 16px 60px;
-            background: rgba(255, 255, 255, 0.4); 
-            color: rgba(255, 255, 255, 0.8); 
-            border: none; border-radius: 50px; font-size: 1.1rem; font-weight: bold;
-            cursor: default; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            pointer-events: none;
-        }
-
-        /* 极速就绪后的按钮状态 */
-        #start-btn.ready {
-            background: #FFFFFF; color: var(--sakuragi-red); cursor: pointer;
+            background: #FFFFFF;
+            color: var(--sakuragi-red);
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
             box-shadow: 0 10px 25px rgba(230,0,18,0.2);
-            animation: pulse 2s infinite; pointer-events: auto;
+            animation: pulse 2s infinite;
+            transition: all 0.2s ease;
+            pointer-events: auto; /* 允许立即点击 */
         }
+        
+        #start-btn:active { transform: scale(0.95); }
 
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
@@ -104,7 +103,6 @@
             100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
         }
 
-        /* 错误提示 */
         #error-msg {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: white; padding: 30px; border-radius: 20px; text-align: center;
@@ -132,7 +130,6 @@
             background-repeat: no-repeat; background-size: 40px 40px;
         }
 
-        /* 樱花下落特效样式 */
         #sakura-container {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 10; display: none; overflow: hidden;
@@ -164,7 +161,7 @@
             <span class="quote-text">“老头子，你最光辉的时刻是在什么时候？而我，就是现在了！”</span>
             <span class="quote-author">—— 樱木花道</span>
         </div>
-        <button id="start-btn">正在准备天才...</button>
+        <button id="start-btn">唤醒天才樱木花道</button>
         <p style="color: white; margin-top: 30px; font-size: 0.75rem; opacity: 0.6; letter-spacing: 1px;">POWERED BY MINDAR</p>
     </div>
 
@@ -233,14 +230,8 @@
         const errorBox = document.querySelector('#error-msg');
         const errorText = document.querySelector('#error-text');
 
-        let isSystemReady = false;
-
-        // --- 🌟 修复：使用 A-Frame 原生 loaded 事件代替不可靠的 setInterval 轮询 ---
-        sceneEl.addEventListener('loaded', () => {
-            isSystemReady = true;
-            startBtn.innerText = "唤醒天才樱木花道";
-            startBtn.classList.add('ready');
-        });
+        // 废弃了之前的 sceneEl.addEventListener('loaded', ...) 等待逻辑
+        // 现在全靠高速轮询去抢占摄像头启动时机
 
         sceneEl.addEventListener("arError", (event) => {
             errorBox.style.display = 'block';
@@ -276,31 +267,35 @@
             }, duration * 1000);
         }
 
-        // --- 唤醒交互 ---
+        // --- 🌟 核心修改 2：点击后极限提速启动 ---
         startBtn.addEventListener('click', () => {
-            if (!isSystemReady) return;
-            
             startBtn.style.pointerEvents = 'none';
-            startBtn.innerText = '正在载入天才空间...';
+            startBtn.innerText = '正在启动摄像头...';
+            startBtn.style.animation = 'none';
+            startBtn.style.opacity = '0.7';
 
-            try {
+            // 设置一个 50 毫秒一次的高频轮询，只要 MindAR 系统一挂载，立刻调起摄像头
+            const fastStart = setInterval(() => {
                 const arSystem = sceneEl.systems["mindar-image-system"];
                 if (arSystem) {
-                    arSystem.start(); // 启动摄像头
+                    clearInterval(fastStart);
+                    try {
+                        arSystem.start(); 
+                    } catch (err) {
+                        errorBox.style.display = 'block';
+                        errorText.innerText = "异常：" + err.message;
+                    }
                 }
-            } catch (err) {
-                errorBox.style.display = 'block';
-                errorText.innerText = "异常：" + err.message;
-            }
+            }, 50); 
         });
 
-        // --- 🌟 修复：监听 arReady 事件（摄像头真正有画面了）再隐藏粉色封面，实现无缝对接不黑屏 ---
+        // --- 监听 arReady 事件（摄像头有画面了）再隐藏粉色封面 ---
         sceneEl.addEventListener("arReady", () => {
             scanHint.style.display = 'block';
             overlay.style.opacity = '0';
             setTimeout(() => { 
                 overlay.style.display = 'none'; 
-            }, 500);
+            }, 400);
         });
 
         // --- 扫描状态联动 ---
