@@ -5,8 +5,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>樱木花道 GENIUS 10</title>
     
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://aframe.io" crossorigin>
+    
     <link rel="preload" href="./final.glb" as="fetch" crossorigin="anonymous">
-    <link rel="preload" href="./ball.glb" as="fetch" crossorigin="anonymous">
     <link rel="preload" href="./targets.mind" as="fetch" crossorigin="anonymous">
 
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
@@ -67,18 +69,15 @@
         .quote-text { font-size: 1.15rem; line-height: 1.8; font-weight: 500; display: block; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .quote-author { font-size: 0.9rem; margin-top: 15px; opacity: 0.8; display: block; text-align: right; letter-spacing: 1px; }
 
+        /* 按钮开局即就绪，绝不阻挡用户交互 */
         #start-btn {
-            padding: 16px 60px; background: rgba(255, 255, 255, 0.4); color: rgba(255, 255, 255, 0.8); border: none;
-            border-radius: 50px; font-size: 1.1rem; font-weight: bold; cursor: default;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: all 0.2s; pointer-events: none;
-        }
-
-        #start-btn.ready {
-            background: #FFFFFF; color: var(--sakuragi-red); cursor: pointer; pointer-events: auto;
-            box-shadow: 0 10px 25px rgba(230,0,18,0.2); animation: pulse 2s infinite;
+            padding: 16px 60px; background: #FFFFFF; color: var(--sakuragi-red); border: none;
+            border-radius: 50px; font-size: 1.1rem; font-weight: bold; cursor: pointer;
+            box-shadow: 0 10px 25px rgba(230,0,18,0.2); animation: pulse 2s infinite; transition: all 0.2s;
         }
 
         #start-btn:active { transform: scale(0.95); }
+        #start-btn.loading { animation: none; opacity: 0.8; pointer-events: none; }
 
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
@@ -131,7 +130,7 @@
             <span class="quote-text">“老头子，你最光辉的时刻是在什么时候？而我，就是现在了！”</span>
             <span class="quote-author">—— 樱木花道</span>
         </div>
-        <button id="start-btn">资源解析中...</button>
+        <button id="start-btn">点击唤醒天才</button>
         <p style="color: white; margin-top: 30px; font-size: 0.75rem; opacity: 0.6; letter-spacing: 1px;">POWERED BY MINDAR</p>
     </div>
 
@@ -152,18 +151,21 @@
         vr-mode-ui="enabled: false" 
         device-orientation-permission-ui="enabled: false">
         
+        <a-assets timeout="10000">
+            <a-asset-item id="characterModel" src="./final.glb"></a-asset-item>
+            <a-asset-item id="ballModel" src="./ball.glb"></a-asset-item>
+        </a-assets>
+
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0">
             <a-entity id="sakuragi" 
-                      gltf-model="url(./final.glb)" 
+                      gltf-model="#characterModel" 
                       model-fixer
                       rotation="0 0 0" position="0 0 0" scale="0.5 0.5 0.5" 
                       animation-mixer="clip: *; loop: repeat;">
                 
-                <a-entity id="basketball" 
-                          gltf-model="url(./ball.glb)" 
-                          position="0.35 1.0 0.15" scale="1.0 1.0 1.0" 
+                <a-entity id="basketball" gltf-model="#ballModel" position="0.35 1.0 0.15" scale="1.0 1.0 1.0" 
                           animation="property: rotation; to: 0 360 0; loop: true; dur: 3000; easing: linear">
                 </a-entity>
 
@@ -190,10 +192,8 @@
         const scanHint = document.querySelector('#scan-hint');
         const sakuraContainer = document.querySelector('#sakura-container');
         const errorBox = document.querySelector('#error-msg');
-        
-        let isReadyToStart = false;
 
-        // 强力注入补丁，屏蔽框架自带的加载弹窗
+        // 强力注入补丁，彻底防报错
         const patchUIInterval = setInterval(() => {
             const arSystem = sceneEl.systems["mindar-image-system"];
             if (arSystem && !arSystem.ui) {
@@ -206,35 +206,21 @@
             }
         }, 10);
 
-        // --- 核心优化：绝对竞速逻辑 ---
-        function readyUp() {
-            if (isReadyToStart) return;
-            isReadyToStart = true;
-            startBtn.innerText = "点击进入天才空间";
-            startBtn.classList.add('ready');
-        }
-
-        // 路线A：如果用户的网速极快，模型在几秒内就传进显卡了，立刻放行
-        document.querySelector('#sakuragi').addEventListener('model-loaded', readyUp);
-
-        // 路线B：就算网速再差，强行设置 3.5 秒的死线。时间一到，无论如何都让用户先点进去！
-        setTimeout(readyUp, 3500);
-
-        // --- 点击唤醒交互 ---
+        // 核心提速 4：0延迟点击指令，10毫秒高频强突系统底层唤醒摄像头
         startBtn.addEventListener('click', () => {
-            if (!isReadyToStart) return;
-            
+            startBtn.classList.add('loading');
             startBtn.innerText = '正在进入天才空间...';
-            startBtn.style.pointerEvents = 'none';
-            startBtn.classList.remove('ready');
-
-            const arSystem = sceneEl.systems["mindar-image-system"];
-            if (arSystem) {
-                arSystem.start(); // 此时调用，几乎瞬间弹出授权并开镜
-            }
+            
+            const triggerAR = setInterval(() => {
+                const arSystem = sceneEl.systems["mindar-image-system"];
+                if (arSystem) {
+                    clearInterval(triggerAR);
+                    arSystem.start(); // 直接指令，立刻弹出摄像头授权，耗时通常 < 1秒
+                }
+            }, 10);
         });
 
-        // --- 无缝揭幕 ---
+        // 核心提速 5：只要摄像头画面一就绪，封面立刻无缝消失，完全展现满血状态
         sceneEl.addEventListener("arReady", () => {
             overlay.style.opacity = '0';
             setTimeout(() => { 
@@ -246,9 +232,10 @@
         sceneEl.addEventListener("arError", (event) => {
             errorBox.style.display = 'block';
             startBtn.innerText = "唤醒失败";
+            startBtn.classList.remove('loading');
         });
 
-        // 樱花与扫描逻辑保持不变
+        // 樱花与扫描逻辑
         let sakuraInterval;
         let isTargetFound = false;
 
