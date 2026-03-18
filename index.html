@@ -95,10 +95,18 @@
             100% { transform: scale(1); }
         }
 
+        /* 增强版扫描引导框：利用黑色蒙层突出扫描区 */
         .scanning-target {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 260px; height: 260px; border: 2px solid rgba(255, 255, 255, 0.6);
-            border-radius: 20px; pointer-events: none; display: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: none; z-index: 5;
+            /* 黑色半透明蒙层，中心抠出透明框 */
+            background: radial-gradient(circle, transparent 150px, rgba(0,0,0,0.4) 150px);
+        }
+        
+        .scan-box {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 300px; height: 300px; border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 24px;
             background: linear-gradient(to right, white 20px, transparent 20px) 0 0,
                         linear-gradient(to right, white 20px, transparent 20px) 0 100%,
                         linear-gradient(to left, white 20px, transparent 20px) 100% 0,
@@ -110,12 +118,12 @@
             background-repeat: no-repeat; background-size: 40px 40px;
         }
         
-        .scanning-target::after {
-            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 2px;
-            background: rgba(255, 255, 255, 0.8); box-shadow: 0 0 10px white;
-            animation: scanLine 2s linear infinite;
+        .scan-line {
+            position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+            background: rgba(255, 255, 255, 0.8); box-shadow: 0 0 15px white;
+            animation: scanMove 2.5s linear infinite;
         }
-        @keyframes scanLine { 0% { top: 0; } 100% { top: 100%; } }
+        @keyframes scanMove { 0% { top: 0%; } 100% { top: 100%; } }
 
         /* 樱花容器 */
         #sakura-container {
@@ -150,14 +158,18 @@
         <p style="color: white; margin-top: 30px; font-size: 0.75rem; opacity: 0.6; letter-spacing: 1px;">POWERED BY MINDAR</p>
     </div>
 
-    <div class="scanning-target" id="scan-hint"></div>
+    <div class="scanning-target" id="scan-hint">
+        <div class="scan-box">
+            <div class="scan-line"></div>
+        </div>
+    </div>
     <div id="sakura-container"></div>
 
-    <!-- 关键改动：warmupTolerance: 1 (瞬间确认) missTolerance: 100 (超级粘性) -->
+    <!-- 优化 MindAR 参数：回归更稳定的标准数值 -->
     <a-scene 
         id="mainScene"
         loading-screen="enabled: false"
-        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no; warmupTolerance: 1; missTolerance: 100; filterMinCF: 0.0001; filterBeta: 0.001;" 
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no; warmupTolerance: 4; missTolerance: 30; filterMinCF: 0.001; filterBeta: 0.01;" 
         color-space="sRGB" 
         renderer="colorManagement: true, physicallyCorrectLights" 
         vr-mode-ui="enabled: false" 
@@ -230,13 +242,12 @@
             const arSystem = sceneEl.systems["mindar-image-system"];
 
             try {
-                // 针对移动端 Safari/微信注入 playsinline 补丁
-                const video = document.querySelector('video');
+                // Safari / 微信环境强制补丁
+                const video = document.querySelector('video') || document.getElementsByTagName('video')[0];
                 if (video) {
                     video.setAttribute('playsinline', '');
                     video.setAttribute('webkit-playsinline', '');
-                    // 强制设置视频流层级，防止遮挡识别图
-                    video.style.zIndex = "1";
+                    video.play().catch(()=>{}); // 尝试强制播放视频流
                 }
 
                 arSystem.start();
@@ -255,8 +266,7 @@
 
                 sceneEl.addEventListener("arReady", reveal);
                 sceneEl.addEventListener("videoScanning", reveal);
-                // 3秒强制拉帘，防止事件未触发
-                setTimeout(() => { if(overlay.style.display !== 'none') reveal(); }, 3000);
+                setTimeout(() => { if(overlay.style.display !== 'none') reveal(); }, 4000);
 
             } catch (err) {
                 console.warn("启动补丁已处理:", err);
