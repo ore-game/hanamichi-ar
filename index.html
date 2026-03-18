@@ -4,13 +4,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>樱木花道 GENIUS 10</title>
-    <!-- 基础库：A-Frame & MindAR -->
+    <!-- 基础库引入 -->
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
     
     <script>
-        // 模型材质修复组件
+        // 模型材质修复：解决细节显示和眉毛透视问题
         AFRAME.registerComponent('model-fixer', {
             init: function () {
                 this.el.addEventListener('model-loaded', () => {
@@ -35,24 +35,30 @@
 
     <style>
         :root { --sakuragi-red: #E60012; --soft-pink: #FFB6C1; --dark-pink: #FF9AAB; }
-        body { margin: 0; overflow: hidden; font-family: -apple-system, sans-serif; background: #000; }
         
-        /* 物理比例修正：确保识别不拉伸 */
-        video { 
+        /* 彻底消除黑边的关键：禁止滚动，视频和Canvas强制填满 */
+        html, body { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; background: #000; 
+            font-family: -apple-system, sans-serif;
+        }
+        
+        /* 强制视频流和渲染层铺满，解决底部黑条 */
+        video, .a-canvas { 
             object-fit: cover !important; 
-            width: 100vw !important; 
-            height: 100vh !important;
+            width: 100% !important; 
+            height: 100% !important;
             position: absolute;
             top: 0; left: 0;
+            bottom: 0; right: 0;
         }
 
-        /* 封面遮罩层 */
+        /* 封面层 */
         #loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, var(--soft-pink) 0%, var(--dark-pink) 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 999; transition: opacity 0.4s ease;
-            padding: 20px; box-sizing: border-box; text-align: center;
+            z-index: 9999; text-align: center;
         }
         
         #loading-overlay h1 {
@@ -75,16 +81,14 @@
 
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        /* 扫描引导框：去掉灰色蒙层，只保留纯净的边角 */
+        /* 扫描引导框：只剩纯净的边角 */
         #scan-hint {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 280px; height: 280px;
-            pointer-events: none; display: none; z-index: 5;
+            pointer-events: none; display: none; z-index: 10;
         }
         .scan-frame {
             position: absolute; width: 100%; height: 100%;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 24px;
             /* 绘制白色四个角 */
             background: linear-gradient(to right, white 20px, transparent 20px) 0 0,
                         linear-gradient(to right, white 20px, transparent 20px) 0 100%,
@@ -97,15 +101,14 @@
             background-repeat: no-repeat; background-size: 40px 40px;
         }
 
-        /* 樱花层 */
+        /* 樱花容器：层级最高 */
         #sakura-container {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 9999; display: none; overflow: hidden;
+            pointer-events: none; z-index: 999; display: none; overflow: hidden;
         }
         .sakura-petal {
             position: absolute; background: linear-gradient(135deg, #ffd1da 0%, #ffb6c1 100%);
             border-radius: 100% 0px 100% 0px; opacity: 0;
-            box-shadow: 0 0 6px rgba(255, 182, 193, 0.4);
             animation: fall linear infinite;
         }
         @keyframes fall {
@@ -119,7 +122,7 @@
 
     <div id="loading-overlay">
         <h1>GENIUS 10</h1>
-        <div style="margin: 40px 0; color: white; max-width: 280px; position: relative; padding: 20px; border-left: 2px solid rgba(255,255,255,0.3); border-right: 2px solid rgba(255,255,255,0.3);">
+        <div style="margin: 40px 0; color: white; max-width: 280px; border-left: 2px solid rgba(255,255,255,0.3); border-right: 2px solid rgba(255,255,255,0.3); padding: 20px;">
             <span style="font-size: 1.1rem; line-height: 1.8; font-weight: 500;">“老头子，你最光辉的时刻是在什么时候？而我，就是现在了！”</span>
         </div>
         <button id="start-btn">正在准备天才...</button>
@@ -128,11 +131,11 @@
     <div id="scan-hint"><div class="scan-frame"></div></div>
     <div id="sakura-container"></div>
 
-    <!-- 手机端优化参数：warmupTolerance 3 确保对焦稳健 -->
     <a-scene 
         id="mainScene"
+        embedded
         loading-screen="enabled: false"
-        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no; warmupTolerance: 3; missTolerance: 30; filterMinCF: 0.001;" 
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no; warmupTolerance: 3; filterMinCF: 0.001;" 
         renderer="colorManagement: true, physicallyCorrectLights" 
         vr-mode-ui="enabled: false" 
         device-orientation-permission-ui="enabled: false">
@@ -165,11 +168,10 @@
         const scanHint = document.querySelector('#scan-hint');
         const sakuraContainer = document.querySelector('#sakura-container');
 
-        // --- 核心就绪探测 ---
+        // --- 核心补丁：极速注入 Mock UI，彻底根治报错 ---
         const patcher = setInterval(() => {
             const arSystem = sceneEl.systems["mindar-image-system"];
             if (arSystem) {
-                // 补足 UI 方法，彻底消灭 showLoading 报错
                 if (!arSystem.ui) {
                     arSystem.ui = { showLoading:()=>{}, hideLoading:()=>{}, showScanning:()=>{}, hideScanning:()=>{} };
                 }
@@ -194,43 +196,33 @@
             setTimeout(() => petal.remove(), 6000);
         }
 
-        // --- 交互逻辑 ---
+        // --- 极速交互逻辑 ---
         startBtn.addEventListener('click', () => {
             const arSystem = sceneEl.systems["mindar-image-system"];
             if (!arSystem) return;
             
+            // 瞬间拉开封印
+            overlay.style.display = 'none';
+            scanHint.style.display = 'block';
+            
             try {
                 arSystem.start(); 
-                startBtn.innerText = "正在开启时空...";
-                startBtn.style.pointerEvents = "none";
-
-                // 只有当摄像头画面刷出来之后，才拉开帘子
-                const onScan = () => {
-                    overlay.style.opacity = '0';
-                    setTimeout(() => { 
-                        overlay.style.display = 'none'; 
-                        scanHint.style.display = 'block'; 
-                    }, 400);
-                    sceneEl.removeEventListener("videoScanning", onScan);
-                };
-                sceneEl.addEventListener("videoScanning", onScan);
-                
-                // 保底 4 秒拉帘
-                setTimeout(() => { if(overlay.style.display !== 'none') onScan(); }, 4000);
-
             } catch (err) {
+                console.error(err);
                 window.location.reload();
             }
         });
 
-        // --- 识别状态联动 ---
+        // --- 扫描状态联动 ---
         sceneEl.addEventListener("targetFound", () => {
+            // 一旦识别到，立刻隐藏扫描框，呈现纯净 VR
             scanHint.style.display = 'none';
             sakuraContainer.style.display = 'block';
             if (!sakuraInterval) sakuraInterval = setInterval(createPetal, 250);
         });
 
         sceneEl.addEventListener("targetLost", () => {
+            // 丢失目标，扫码框重新跳出来
             scanHint.style.display = 'block';
             sakuraContainer.style.display = 'none';
             clearInterval(sakuraInterval);
