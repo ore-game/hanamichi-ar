@@ -45,7 +45,7 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, var(--soft-pink) 0%, var(--dark-pink) 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 999; transition: opacity 0.3s ease-out; padding: 40px 20px; box-sizing: border-box; text-align: center;
+            z-index: 999; transition: opacity 0.2s ease-out; padding: 40px 20px; box-sizing: border-box; text-align: center;
         }
         
         #loading-overlay h1 {
@@ -152,21 +152,18 @@
         vr-mode-ui="enabled: false" 
         device-orientation-permission-ui="enabled: false">
         
-        <a-assets timeout="10">
-            <a-asset-item id="characterModel" src="./final.glb"></a-asset-item>
-            <a-asset-item id="ballModel" src="./ball.glb"></a-asset-item>
-        </a-assets>
-
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0">
             <a-entity id="sakuragi" 
-                      gltf-model="#characterModel" 
+                      gltf-model="url(./final.glb)" 
                       model-fixer
                       rotation="0 0 0" position="0 0 0" scale="0.5 0.5 0.5" 
                       animation-mixer="clip: *; loop: repeat;">
                 
-                <a-entity id="basketball" gltf-model="#ballModel" position="0.35 1.0 0.15" scale="1.0 1.0 1.0" 
+                <a-entity id="basketball" 
+                          gltf-model="url(./ball.glb)" 
+                          position="0.35 1.0 0.15" scale="1.0 1.0 1.0" 
                           animation="property: rotation; to: 0 360 0; loop: true; dur: 3000; easing: linear">
                 </a-entity>
 
@@ -195,7 +192,7 @@
         const errorBox = document.querySelector('#error-msg');
         const errorText = document.querySelector('#error-text');
 
-        // 强力注入补丁，彻底干掉初始化阶段可能引发卡顿的报错
+        // 强力注入补丁防报错
         const patchUIInterval = setInterval(() => {
             const arSystem = sceneEl.systems["mindar-image-system"];
             if (arSystem && !arSystem.ui) {
@@ -208,13 +205,13 @@
             }
         }, 10);
 
-        // 监听 AR 核心引擎准备完毕（只需 1~2 秒调用摄像头和编译基础特征）
+        // 监听 AR 准备就绪
         sceneEl.addEventListener("arReady", () => {
             overlay.style.opacity = '0';
             setTimeout(() => { 
                 overlay.style.display = 'none'; 
                 scanHint.style.display = 'block'; 
-            }, 300);
+            }, 200);
         });
 
         sceneEl.addEventListener("arError", (event) => {
@@ -223,27 +220,37 @@
             startBtn.classList.remove('loading');
         });
 
-        // 交互逻辑：点击瞬间点火启动！
-        startBtn.addEventListener('click', () => {
+        // 核心重构3：点击交互与原生的摄像机强行劫持
+        startBtn.addEventListener('click', async () => {
             startBtn.classList.add('loading');
-            startBtn.innerText = '正在接通高维空间...';
+            // 满足你的要求，修改文案
+            startBtn.innerText = '正在进入天才空间...';
             
+            // 终极绝招：用浏览器原生 API 提前强行申请摄像头，0等待弹出授权！
             try {
-                // 每 50ms 检测系统是否挂载，挂载后立刻强行启动
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                }
+            } catch (err) {
+                console.warn("原生请求摄像头被拦截，等待引擎接管...");
+            }
+
+            try {
+                // 每 20ms 高频检测引擎，一旦挂载立刻启动编译 .mind 文件
                 const checkAndStart = setInterval(() => {
                     const arSystem = sceneEl.systems["mindar-image-system"];
                     if (arSystem) {
                         clearInterval(checkAndStart);
-                        arSystem.start(); // 瞬间调用摄像头，因为 timeout=10，不会被模型卡住
+                        arSystem.start(); 
                     }
-                }, 50);
+                }, 20);
             } catch (err) {
                 errorBox.style.display = 'block';
                 errorText.innerText = "异常：" + err.message;
             }
         });
 
-        // 樱花与扫描逻辑保持不变
+        // 樱花与扫描逻辑
         let sakuraInterval;
         let isTargetFound = false;
 
