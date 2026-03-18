@@ -4,13 +4,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>樱木花道 GENIUS 10</title>
-    <!-- 引入 A-Frame & MindAR 高性能生产版 -->
+    <!-- 基础库：A-Frame & MindAR -->
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
     
     <script>
-        // 极致材质修复：针对移动端 GPU 优化渲染
+        // 模型材质修复组件
         AFRAME.registerComponent('model-fixer', {
             init: function () {
                 this.el.addEventListener('model-loaded', () => {
@@ -18,13 +18,13 @@
                     if (!mesh) return;
                     mesh.traverse((node) => {
                         if (node.isMesh) {
-                            node.material.side = THREE.DoubleSide; // 防止眉毛背面透明
+                            node.material.side = THREE.DoubleSide; 
                             if (/eye|brow/i.test(node.name) || node.material.transparent) {
                                 node.material.transparent = true;
                                 node.material.depthWrite = true;
                                 node.material.depthTest = true;
                                 node.material.alphaTest = 0.1;
-                                node.renderOrder = 999; // 强制最前层渲染
+                                node.renderOrder = 999;
                             }
                         }
                     });
@@ -37,15 +37,21 @@
         :root { --sakuragi-red: #E60012; --soft-pink: #FFB6C1; --dark-pink: #FF9AAB; }
         body { margin: 0; overflow: hidden; font-family: -apple-system, sans-serif; background: #000; }
         
-        /* 极致流畅视频：确保不失真 */
-        video { object-fit: cover !important; width: 100vw !important; height: 100vh !important; }
+        /* 针对手机端：强制视频全屏且不拉伸，这是识别成功的物理基础 */
+        video { 
+            object-fit: cover !important; 
+            width: 100vw !important; 
+            height: 100vh !important;
+            position: absolute;
+            top: 0; left: 0;
+        }
 
-        /* 极速封面 */
+        /* 封面遮罩层：保持极速消失动画 */
         #loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, var(--soft-pink) 0%, var(--dark-pink) 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 999; transition: opacity 0.3s ease; /* 加快消失速度 */
+            z-index: 999; transition: opacity 0.4s ease;
             padding: 20px; box-sizing: border-box; text-align: center;
         }
         
@@ -62,14 +68,14 @@
             padding: 16px 60px; background: #FFFFFF; color: var(--sakuragi-red);
             border: none; border-radius: 50px; font-size: 1.1rem; font-weight: bold;
             box-shadow: 0 10px 25px rgba(230,0,18,0.2); cursor: pointer;
-            transition: all 0.2s ease; animation: pulse 2s infinite;
+            transition: all 0.3s ease; animation: pulse 2s infinite;
             opacity: 0.6; pointer-events: none;
         }
         #start-btn.ready { opacity: 1; pointer-events: auto; }
 
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        /* 高性能扫描框 */
+        /* 扫描引导框 */
         #scan-hint {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; display: none; z-index: 5;
@@ -90,7 +96,7 @@
             background-repeat: no-repeat; background-size: 40px 40px;
         }
 
-        /* 极致层级樱花 */
+        /* 樱花层 */
         #sakura-container {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 9999; display: none; overflow: hidden;
@@ -121,12 +127,12 @@
     <div id="scan-hint"><div class="scan-frame"></div></div>
     <div id="sakura-container"></div>
 
-    <!-- 针对手机端极致优化的 MindAR 参数 -->
+    <!-- 手机端优化参数：warmupTolerance 3（中庸之道），filterMinCF 0.001（稳如老狗） -->
     <a-scene 
         id="mainScene"
         loading-screen="enabled: false"
-        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no; warmupTolerance: 1; missTolerance: 30; filterMinCF: 0.0001; filterBeta: 0.001;" 
-        renderer="colorManagement: true, physicallyCorrectLights, antialias: false; precision: medium;" 
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no; warmupTolerance: 3; missTolerance: 30; filterMinCF: 0.001; filterBeta: 0.01;" 
+        renderer="colorManagement: true, physicallyCorrectLights" 
         vr-mode-ui="enabled: false" 
         device-orientation-permission-ui="enabled: false">
         
@@ -158,12 +164,11 @@
         const scanHint = document.querySelector('#scan-hint');
         const sakuraContainer = document.querySelector('#sakura-container');
 
-        // --- 核心补丁：高频巡检并瞬间注入虚拟 UI ---
+        // --- 核心补丁：高频巡检并注入 Mock UI，彻底根治 showLoading 错误 ---
         let isSystemReady = false;
         const patcher = setInterval(() => {
             const arSystem = sceneEl.systems["mindar-image-system"];
             if (arSystem) {
-                // 瞬间补足缺失的 UI 模块，攻克 showLoading 报错
                 if (!arSystem.ui) {
                     arSystem.ui = { showLoading:()=>{}, hideLoading:()=>{}, showScanning:()=>{}, hideScanning:()=>{} };
                 }
@@ -172,9 +177,9 @@
                 startBtn.innerText = "唤醒天才樱木花道";
                 startBtn.classList.add('ready');
             }
-        }, 20warmupTolerance0);
+        }, 100);
 
-        // --- 樱花生成器 ---
+        // --- 樱花系统 ---
         let sakuraInterval = null;
         function createPetal() {
             const petal = document.createElement('div');
@@ -189,41 +194,40 @@
             setTimeout(() => petal.remove(), 6000);
         }
 
-        // --- 极致交互响应 ---
+        // --- 极速交互逻辑 ---
         startBtn.addEventListener('click', () => {
             if (!isSystemReady) return;
             const arSystem = sceneEl.systems["mindar-image-system"];
             
             try {
-                // 强制唤醒摄像头
-                arSystem.start();
-                startBtn.innerText = "准备进入...";
+                arSystem.start(); 
+                startBtn.innerText = "正在打开时空...";
                 startBtn.style.pointerEvents = "none";
 
-                // 【核心优化】监听视频流正式扫描事件，无缝切换
+                // 监听 videoScanning 事件：这是手机端“摄像头已就绪”的硬指标
                 const onVideoStart = () => {
                     overlay.style.opacity = '0';
                     setTimeout(() => { 
                         overlay.style.display = 'none'; 
                         scanHint.style.display = 'block'; 
-                    }, 300);
+                    }, 400);
                     sceneEl.removeEventListener("videoScanning", onVideoStart);
                 };
                 sceneEl.addEventListener("videoScanning", onVideoStart);
                 
-                // 保底 3 秒极速切换
-                setTimeout(() => { if(overlay.style.display !== 'none') onVideoStart(); }, 3000);
+                // 4秒保底切换，应对极端情况
+                setTimeout(() => { if(overlay.style.display !== 'none') onVideoStart(); }, 4000);
 
             } catch (err) {
                 window.location.reload();
             }
         });
 
-        // --- 瞬间识别联动 ---
+        // --- 识别状态联动 ---
         sceneEl.addEventListener("targetFound", () => {
             scanHint.style.display = 'none';
             sakuraContainer.style.display = 'block';
-            if (!sakuraInterval) sakuraInterval = setInterval(createPetal, 200);
+            if (!sakuraInterval) sakuraInterval = setInterval(createPetal, 250);
         });
 
         sceneEl.addEventListener("targetLost", () => {
