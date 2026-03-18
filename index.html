@@ -4,9 +4,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>樱木花道 GENIUS 10</title>
+    
+    <link rel="preload" href="./final.glb" as="fetch" crossorigin="anonymous">
+    <link rel="preload" href="./ball.glb" as="fetch" crossorigin="anonymous">
+    <link rel="preload" href="./targets.mind" as="fetch" crossorigin="anonymous">
+
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+    
     <script>
         AFRAME.registerComponent('model-fixer', {
             init: function () {
@@ -33,19 +39,14 @@
         });
     </script>
     <style>
-        :root {
-            --sakuragi-red: #E60012;
-            --soft-pink: #FFB6C1;
-            --dark-pink: #FF9AAB;
-        }
-
+        :root { --sakuragi-red: #E60012; --soft-pink: #FFB6C1; --dark-pink: #FF9AAB; }
         body { margin: 0; overflow: hidden; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #000; }
         
         #loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, var(--soft-pink) 0%, var(--dark-pink) 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 999; transition: opacity 0.2s ease-out; padding: 40px 20px; box-sizing: border-box; text-align: center;
+            z-index: 999; transition: opacity 0.3s ease-out; padding: 40px 20px; box-sizing: border-box; text-align: center;
         }
         
         #loading-overlay h1 {
@@ -56,10 +57,7 @@
 
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
-        .quote-container {
-            position: relative; color: white; max-width: 280px; margin: 50px 0; padding: 20px;
-        }
-
+        .quote-container { position: relative; color: white; max-width: 280px; margin: 50px 0; padding: 20px; }
         .quote-container::before, .quote-container::after {
             content: ''; position: absolute; width: 30px; height: 30px; border: 2px solid rgba(255,255,255,0.4);
         }
@@ -70,14 +68,17 @@
         .quote-author { font-size: 0.9rem; margin-top: 15px; opacity: 0.8; display: block; text-align: right; letter-spacing: 1px; }
 
         #start-btn {
-            padding: 16px 60px; background: #FFFFFF; color: var(--sakuragi-red); border: none;
-            border-radius: 50px; font-size: 1.1rem; font-weight: bold; cursor: pointer;
+            padding: 16px 60px; background: rgba(255, 255, 255, 0.4); color: rgba(255, 255, 255, 0.8); border: none;
+            border-radius: 50px; font-size: 1.1rem; font-weight: bold; cursor: default;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: all 0.3s; pointer-events: none;
+        }
+
+        #start-btn.ready {
+            background: #FFFFFF; color: var(--sakuragi-red); cursor: pointer; pointer-events: auto;
             box-shadow: 0 10px 25px rgba(230,0,18,0.2); animation: pulse 2s infinite;
-            transition: all 0.2s;
         }
 
         #start-btn:active { transform: scale(0.95); }
-        #start-btn.loading { animation: none; opacity: 0.8; pointer-events: none; }
 
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
@@ -90,7 +91,6 @@
             background: white; padding: 30px; border-radius: 20px; text-align: center;
             z-index: 1000; display: none; width: 85%; max-width: 320px; box-shadow: 0 20px 50px rgba(0,0,0,0.3);
         }
-
         #error-msg button { margin-top: 20px; padding: 10px 30px; background: var(--sakuragi-red); color: white; border: none; border-radius: 25px; font-weight: bold; }
 
         .scanning-target {
@@ -131,7 +131,7 @@
             <span class="quote-text">“老头子，你最光辉的时刻是在什么时候？而我，就是现在了！”</span>
             <span class="quote-author">—— 樱木花道</span>
         </div>
-        <button id="start-btn">点击唤醒天才</button>
+        <button id="start-btn">模型资源解析中...</button>
         <p style="color: white; margin-top: 30px; font-size: 0.75rem; opacity: 0.6; letter-spacing: 1px;">POWERED BY MINDAR</p>
     </div>
 
@@ -152,17 +152,22 @@
         vr-mode-ui="enabled: false" 
         device-orientation-permission-ui="enabled: false">
         
+        <a-assets id="assets-loader">
+            <a-asset-item id="characterModel" src="./final.glb"></a-asset-item>
+            <a-asset-item id="ballModel" src="./ball.glb"></a-asset-item>
+        </a-assets>
+
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0">
             <a-entity id="sakuragi" 
-                      gltf-model="url(./final.glb)" 
+                      gltf-model="#characterModel" 
                       model-fixer
                       rotation="0 0 0" position="0 0 0" scale="0.5 0.5 0.5" 
                       animation-mixer="clip: *; loop: repeat;">
                 
                 <a-entity id="basketball" 
-                          gltf-model="url(./ball.glb)" 
+                          gltf-model="#ballModel" 
                           position="0.35 1.0 0.15" scale="1.0 1.0 1.0" 
                           animation="property: rotation; to: 0 360 0; loop: true; dur: 3000; easing: linear">
                 </a-entity>
@@ -187,12 +192,14 @@
         const startBtn = document.querySelector('#start-btn');
         const overlay = document.querySelector('#loading-overlay');
         const sceneEl = document.querySelector('a-scene');
+        const assetsLoader = document.querySelector('#assets-loader');
         const scanHint = document.querySelector('#scan-hint');
         const sakuraContainer = document.querySelector('#sakura-container');
         const errorBox = document.querySelector('#error-msg');
-        const errorText = document.querySelector('#error-text');
+        
+        let isSystemReady = false;
 
-        // 强力注入补丁防报错
+        // 强力注入补丁，防止 MindAR 默认的 loading UI 闪烁报错
         const patchUIInterval = setInterval(() => {
             const arSystem = sceneEl.systems["mindar-image-system"];
             if (arSystem && !arSystem.ui) {
@@ -205,52 +212,45 @@
             }
         }, 10);
 
-        // 监听 AR 准备就绪
+        // 核心逻辑 1：严谨监听资源是否真正加载完毕
+        // 只有当 A-Frame 确认模型全部解析进 GPU，才允许用户点击
+        assetsLoader.addEventListener('loaded', () => {
+            isSystemReady = true;
+            startBtn.innerText = "点击进入天才空间";
+            startBtn.classList.add('ready');
+        });
+
+        // 核心逻辑 2：极致缩短开镜时间
+        startBtn.addEventListener('click', () => {
+            if (!isSystemReady) return;
+            
+            startBtn.innerText = '正在进入天才空间...';
+            startBtn.style.pointerEvents = 'none';
+            startBtn.classList.remove('ready');
+
+            const arSystem = sceneEl.systems["mindar-image-system"];
+            if (arSystem) {
+                // 因为模型已经 100% 在内存里了，这步只会干两件事：请求摄像头 + 编译识别图
+                // 通常只要用户点了允许摄像头，1~3秒内就会触发 arReady
+                arSystem.start(); 
+            }
+        });
+
+        // 核心逻辑 3：摄像头一开，无缝揭幕，此时扫描必然秒出模型！
         sceneEl.addEventListener("arReady", () => {
             overlay.style.opacity = '0';
             setTimeout(() => { 
                 overlay.style.display = 'none'; 
                 scanHint.style.display = 'block'; 
-            }, 200);
+            }, 300);
         });
 
         sceneEl.addEventListener("arError", (event) => {
             errorBox.style.display = 'block';
             startBtn.innerText = "唤醒失败";
-            startBtn.classList.remove('loading');
         });
 
-        // 核心重构3：点击交互与原生的摄像机强行劫持
-        startBtn.addEventListener('click', async () => {
-            startBtn.classList.add('loading');
-            // 满足你的要求，修改文案
-            startBtn.innerText = '正在进入天才空间...';
-            
-            // 终极绝招：用浏览器原生 API 提前强行申请摄像头，0等待弹出授权！
-            try {
-                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                    await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                }
-            } catch (err) {
-                console.warn("原生请求摄像头被拦截，等待引擎接管...");
-            }
-
-            try {
-                // 每 20ms 高频检测引擎，一旦挂载立刻启动编译 .mind 文件
-                const checkAndStart = setInterval(() => {
-                    const arSystem = sceneEl.systems["mindar-image-system"];
-                    if (arSystem) {
-                        clearInterval(checkAndStart);
-                        arSystem.start(); 
-                    }
-                }, 20);
-            } catch (err) {
-                errorBox.style.display = 'block';
-                errorText.innerText = "异常：" + err.message;
-            }
-        });
-
-        // 樱花与扫描逻辑
+        // 樱花与扫描逻辑保持不变
         let sakuraInterval;
         let isTargetFound = false;
 
